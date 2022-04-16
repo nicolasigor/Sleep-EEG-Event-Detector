@@ -1,2 +1,2 @@
-# REDv2
-A deep sequence model to detect sleep EEG events
+# Sleep EEG Event Detector (SEED)
+Deep learning-based detection of sleep spindles and K-complexes
