@@ -9,8 +9,8 @@ If you find this software useful, please consider citing our work.
 
 ## Roadmap
 
-- [x] Paper officially published online (jan 2nd, 2024)
-- [x] Share a working (but messy) code. The existing code uses tensorflow 1, which is deprecated. As a temporary fix, tensorflow 1 behaviour is requested to tensorflow 2 at import time.
+- [x] Paper officially published online. (jan 2nd, 2024)
+- [x] Share a working (but messy) code. The existing code uses tensorflow 1, which is deprecated. As a temporary fix, tensorflow 1 behaviour is requested to tensorflow 2 at import time. (jan 8th, 2024)
 - [ ] Clean, update and simplify. Migrate from tensorflow 1 to tensorflow 2.
 - [ ] Generate and share working checkpoints. 
 
