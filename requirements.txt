@@ -1,5 +1,6 @@
 # python 3.10
 tensorflow==2.15.0
+tensorflow-probability==0.23.0
 matplotlib==3.8.2
 numpy==1.26.3
 pandas==2.1.4

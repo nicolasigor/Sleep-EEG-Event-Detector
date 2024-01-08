@@ -1,0 +1,16 @@
+MrOS
+none (queda fuera desde el principio un sujeto que no tenia anotaciones)
+
+CHAT
+'chat-baseline-300594'
+'chat-baseline-nonrandomized-300534'
+'chat-baseline-nonrandomized-300661'
+'chat-baseline-300884'
+'chat-baseline-nonrandomized-300423'
+'chat-baseline-nonrandomized-300683'
+'chat-baseline-300659'
+'chat-baseline-nonrandomized-300823'
+'chat-baseline-nonrandomized-300952'
+
+
+

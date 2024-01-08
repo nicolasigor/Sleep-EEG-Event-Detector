@@ -10,9 +10,20 @@ If you find this software useful, please consider citing our work.
 ## Roadmap
 
 - [x] Paper officially published online (jan 2nd, 2024)
-- [ ] Share a working (but messy) code and weights. The existing code uses tensorflow 1, and existing weights only work when using an NVIDIA GPU (due to the cudnn-accelerated LSTM implementation).
-- [ ] Migrate from tensorflow 1 to tensorflow 2
-- [ ] Generate checkpoints for both CPU and GPU
+- [x] Share a working (but messy) code. The existing code uses tensorflow 1, which is deprecated. As a temporary fix, tensorflow 1 behaviour is requested to tensorflow 2 at import time.
+- [ ] Clean, update and simplify. Migrate from tensorflow 1 to tensorflow 2.
+- [ ] Generate and share working checkpoints. 
+
+
+**Note on existing pre-trained weights:** Existing checkpoints require a deprecated implementation of LSTM layers (`CuDNNLSTM` in `tf.contrib`), that was removed in TF2 and does not have an exact equivalent (so tensors won't match).
+
+
+
+## Getting started
+
+For now, your simplest entrypoint is `/scripts/`.
+- `train.py`: Trains SEED, and generates predictions of the final model.
+- `crossval_performance.py`: For a given training run, it fits the detection threshold of SEED and reports the cross-validation performance of that optimal threshold.
 
 
 ## Setup
