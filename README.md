@@ -45,7 +45,7 @@ If you want to use MASS data ([MASS paper](https://pubmed.ncbi.nlm.nih.gov/24909
 
 On the other hand, if you want to use your own dataset, the easiest way in the current state of the code is to create your own subclass of the `Dataset` base class in the `sleeprnn/data/` package.
 
-You can use the existing subclasses as examples for the implemenation. The base class has documentation for the expected arguments in its constructor. Besides giving these arguments, you must implement the `_load_from_source` method, that is in charge of reading raw files and return the data dictionary, as illustrated by the template implementation in `Dataset`, or as you can also see on actual implementations for MASS-SS2 and MODA.
+You can use the existing subclasses as examples for the implemenation. The base class has documentation for the expected arguments in its constructor. Besides giving these arguments, you must implement the `_load_from_source` method, that is in charge of reading raw files and return the data dictionary, as illustrated by the template implementation in `Dataset`, or as you can also see on actual implementations for MASS-SS2 and MODA. Note that the implemented function not only has to read data and structure it in the expected format, but you also need to preprocess the data (most likely just bandpass filtering the EEG). Again, see the current implementations for MASS-SS2 as an example.
 
 Once you create your own subclass of `Dataset`, you can add it as another option in the function `load_dataset` defined in `sleeprnn/helpers/reader.py`, so that it can be easily loaded by the training and fitting scripts by name.
 
