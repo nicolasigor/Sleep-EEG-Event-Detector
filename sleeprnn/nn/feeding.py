@@ -8,16 +8,17 @@ import tensorflow as tf
 
 
 def get_iterator_splitted(
-        tensors_ph_1,
-        tensors_ph_2,
-        batch_size,
-        repeat=True,
-        shuffle_buffer_size=0,
-        map_fn=None,
-        prefetch_buffer_size=0,
-        name=None):
+    tensors_ph_1,
+    tensors_ph_2,
+    batch_size,
+    repeat=True,
+    shuffle_buffer_size=0,
+    map_fn=None,
+    prefetch_buffer_size=0,
+    name=None,
+):
     with tf.name_scope(name):
-        with tf.device('/cpu:0'):
+        with tf.device("/cpu:0"):
 
             batch_size_1 = int(batch_size / 2)
             batch_size_2 = batch_size - batch_size_1
@@ -72,13 +73,14 @@ def _combine_batch_fn(tensors_1, tensors_2):
 
 
 def get_iterator(
-        tensors_ph,
-        batch_size,
-        repeat=True,
-        shuffle_buffer_size=0,
-        map_fn=None,
-        prefetch_buffer_size=0,
-        name=None):
+    tensors_ph,
+    batch_size,
+    repeat=True,
+    shuffle_buffer_size=0,
+    map_fn=None,
+    prefetch_buffer_size=0,
+    name=None,
+):
     """Builds efficient iterators for the training loop.
 
     Args:
@@ -95,7 +97,7 @@ def get_iterator(
         name: (Optional, string, defaults to None) Name for the operation.
     """
     with tf.name_scope(name):
-        with tf.device('/cpu:0'):
+        with tf.device("/cpu:0"):
             dataset = tf.data.Dataset.from_tensor_slices(tensors_ph)
             if shuffle_buffer_size > 0:
                 dataset = dataset.shuffle(buffer_size=shuffle_buffer_size)
@@ -125,8 +127,10 @@ def get_global_iterator(handle_ph, iterators_list, name=None):
             and iterator_2 according to the handle fed to handle_ph.
     """
     with tf.name_scope(name):
-        with tf.device('/cpu:0'):
+        with tf.device("/cpu:0"):
             global_iterator = tf.data.Iterator.from_string_handle(
-                handle_ph, iterators_list[0].output_types,
-                iterators_list[0].output_shapes)
+                handle_ph,
+                iterators_list[0].output_types,
+                iterators_list[0].output_shapes,
+            )
     return global_iterator

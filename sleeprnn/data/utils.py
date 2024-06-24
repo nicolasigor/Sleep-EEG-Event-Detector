@@ -9,11 +9,19 @@ import os
 
 import numpy as np
 from scipy.interpolate import interp1d
-from scipy.signal import resample_poly, butter, filtfilt, firwin, lfilter, freqz, sosfiltfilt
+from scipy.signal import (
+    resample_poly,
+    butter,
+    filtfilt,
+    firwin,
+    lfilter,
+    freqz,
+    sosfiltfilt,
+)
 from scipy.stats import iqr
 
 PATH_THIS_DIR = os.path.dirname(__file__)
-PATH_DATA = os.path.join(PATH_THIS_DIR, '..', '..', 'resources', 'datasets')
+PATH_DATA = os.path.join(PATH_THIS_DIR, "..", "..", "resources", "datasets")
 
 from sleeprnn.common import constants, checks
 
@@ -21,7 +29,7 @@ from sleeprnn.common import constants, checks
 def seq2stamp(sequence):
     """Returns the start and end samples of stamps in a binary sequence."""
     if not np.array_equal(sequence, sequence.astype(bool)):
-        raise ValueError('Sequence must have binary values only')
+        raise ValueError("Sequence must have binary values only")
     n = len(sequence)
     tmp_result = np.diff(sequence, prepend=0)
     start_times = np.where(tmp_result == 1)[0]
@@ -37,10 +45,10 @@ def stamp2seq(stamps, start, end, allow_early_end=False):
     """Returns the binary sequence segment from 'start' to 'end',
     associated with the stamps."""
     if np.any(stamps < start):
-        msg = 'Values in intervals should be within start bound'
+        msg = "Values in intervals should be within start bound"
         raise ValueError(msg)
     if np.any(stamps > end) and not allow_early_end:
-        msg = 'Values in intervals should be within end bound'
+        msg = "Values in intervals should be within end bound"
         raise ValueError(msg)
 
     sequence = np.zeros(end - start + 1, dtype=np.int32)
@@ -52,14 +60,15 @@ def stamp2seq(stamps, start, end, allow_early_end=False):
 
 
 def stamp2seq_with_separation(
-        stamps, start, end, min_separation_samples, allow_early_end=False):
+    stamps, start, end, min_separation_samples, allow_early_end=False
+):
     """Returns the binary sequence segment from 'start' to 'end',
     associated with the stamps."""
     if np.any(stamps < start):
-        msg = 'Values in intervals should be within start bound'
+        msg = "Values in intervals should be within start bound"
         raise ValueError(msg)
     if np.any(stamps > end) and not allow_early_end:
-        msg = 'Values in intervals should be within end bound'
+        msg = "Values in intervals should be within end bound"
         raise ValueError(msg)
 
     # Force separation
@@ -101,10 +110,10 @@ def seq2stamp_with_pages(pages_sequence, pages_indices):
             pages_sequence, with shape [n_pages,]
     """
     if pages_sequence.shape[0] != pages_indices.shape[0]:
-        raise ValueError('Shape mismatch. Inputs need the same number of rows.')
+        raise ValueError("Shape mismatch. Inputs need the same number of rows.")
     tmp_sequence = pages_sequence.flatten()
     if not np.array_equal(tmp_sequence, tmp_sequence.astype(bool)):
-        raise ValueError('Sequence must have binary values only')
+        raise ValueError("Sequence must have binary values only")
 
     page_size = pages_sequence.shape[1]
     max_page = np.max(pages_indices)
@@ -120,7 +129,7 @@ def seq2stamp_with_pages(pages_sequence, pages_indices):
 
 def pages2seq(pages_data, pages_indices):
     if pages_data.shape[0] != pages_indices.shape[0]:
-        raise ValueError('Shape mismatch. Inputs need the same number of rows.')
+        raise ValueError("Shape mismatch. Inputs need the same number of rows.")
 
     page_size = pages_data.shape[1]
     max_page = np.max(pages_indices)
@@ -140,7 +149,7 @@ def broad_filter(signal, fs, lowcut=0.1, highcut=35):
     nyq = 0.5 * fs
     low = lowcut / nyq
     high = highcut / nyq
-    b, a = butter(3, (low, high), btype='band')
+    b, a = butter(3, (low, high), btype="band")
     # Apply filter to the signal with zero-phase.
     filtered_signal = filtfilt(b, a, signal)
     return filtered_signal
@@ -152,7 +161,7 @@ def filter_iir_lowpass(signal, fs, highcut=4):
     # Generate butter bandpass of order 3.
     nyq = 0.5 * fs
     high = highcut / nyq
-    b, a = butter(3, high, btype='low')
+    b, a = butter(3, high, btype="low")
     # Apply filter to the signal with zero-phase.
     filtered_signal = filtfilt(b, a, signal)
     return filtered_signal
@@ -175,8 +184,7 @@ def narrow_filter(signal, fs, lowcut, highcut):
 
     # Kernel design
     b_base = firwin(ntaps, cutoff, width, pass_zero=False, fs=fs)
-    kernel = np.append(np.array([0, 0]), b_base) - np.append(
-        b_base, np.array([0, 0]))
+    kernel = np.append(np.array([0, 0]), b_base) - np.append(b_base, np.array([0, 0]))
 
     # Normalize kernel
     kernel = kernel / np.linalg.norm(kernel)
@@ -187,15 +195,15 @@ def narrow_filter(signal, fs, lowcut, highcut):
 
 
 def filter_windowed_sinusoidal(
-        signal, fs, central_freq, ntaps,
-        sinusoidal_fn=np.cos, window_fn=np.hanning):
+    signal, fs, central_freq, ntaps, sinusoidal_fn=np.cos, window_fn=np.hanning
+):
     # Kernel design
     time_array = np.arange(ntaps) - ntaps // 2
     time_array = time_array / fs
     b_base = sinusoidal_fn(2 * np.pi * central_freq * time_array)
     cos_base = np.cos(2 * np.pi * central_freq * time_array)
     window = window_fn(b_base.size)
-    norm_factor = np.sum(window * (cos_base ** 2))
+    norm_factor = np.sum(window * (cos_base**2))
     kernel = b_base * window / norm_factor
 
     # Apply kernel
@@ -236,29 +244,33 @@ def resample_signal_linear(signal, fs_old, fs_new):
 
 
 def norm_clip_signal(
-        signal,
-        pages_indices,
-        page_size,
-        norm_computation=constants.NORM_GLOBAL,
-        clip_value=10,
-        global_std=None,
+    signal,
+    pages_indices,
+    page_size,
+    norm_computation=constants.NORM_GLOBAL,
+    clip_value=10,
+    global_std=None,
 ):
 
     checks.check_valid_value(
-        norm_computation, 'norm_computation',
-        [
-            constants.NORM_IQR,
-            constants.NORM_STD,
-            constants.NORM_GLOBAL
-        ])
+        norm_computation,
+        "norm_computation",
+        [constants.NORM_IQR, constants.NORM_STD, constants.NORM_GLOBAL],
+    )
     # print('Clipping at %s' % clip_value)
     if norm_computation == constants.NORM_IQR:
-        norm_signal, clip_mask = norm_clip_signal_iqr(signal, pages_indices, page_size, clip_value)
+        norm_signal, clip_mask = norm_clip_signal_iqr(
+            signal, pages_indices, page_size, clip_value
+        )
     elif norm_computation == constants.NORM_STD:
-        norm_signal, clip_mask = norm_clip_signal_std(signal, pages_indices, page_size, clip_value)
+        norm_signal, clip_mask = norm_clip_signal_std(
+            signal, pages_indices, page_size, clip_value
+        )
     else:
         if global_std is None:
-            raise ValueError('norm_computation is set to global, but global_std is None')
+            raise ValueError(
+                "norm_computation is set to global, but global_std is None"
+            )
         norm_signal, clip_mask = norm_clip_signal_global(signal, global_std, clip_value)
     return norm_signal, clip_mask
 
@@ -293,13 +305,13 @@ def norm_clip_signal_std(signal, pages_indices, page_size, clip_value=10):
             after normalization.
     """
     # Extract statistics only from N2 stages
-    print('Normalizing with STD after outlier removal')
+    print("Normalizing with STD after outlier removal")
     n2_data = extract_pages(signal, pages_indices, page_size)
     n2_signal = np.concatenate(n2_data)
     outlier_thr = np.percentile(np.abs(n2_signal), 98)
     tmp_signal = n2_signal[np.abs(n2_signal) <= outlier_thr]
     signal_std = tmp_signal.std()
-    print('Signal STD: %1.4f' % signal_std)
+    print("Signal STD: %1.4f" % signal_std)
 
     # Normalize entire signal, we assume zero-centered data
     norm_signal = signal / signal_std
@@ -332,13 +344,13 @@ def norm_clip_signal_iqr(signal, pages_indices, page_size, clip_value=10):
             after normalization.
     """
     # Extract statistics only from N2 stages
-    print('Normalizing with IQR')
+    print("Normalizing with IQR")
     n2_data = extract_pages(signal, pages_indices, page_size)
     n2_signal = np.concatenate(n2_data)
     signal_std = iqr(n2_signal) / 1.349
     signal_median = np.median(n2_signal)
 
-    print('Signal STD: %1.4f' % signal_std)
+    print("Signal STD: %1.4f" % signal_std)
 
     # Normalize entire signal
     # norm_signal = (signal - signal_median) / signal_std
@@ -369,10 +381,10 @@ def power_spectrum(signal, fs, apply_hanning=False):
     n = signal.size
     y = np.fft.fft(signal)
     y = np.abs(y) / n
-    power = y[:n // 2]
+    power = y[: n // 2]
     power[1:-1] = 2 * power[1:-1]
     freq = np.fft.fftfreq(n, d=1 / fs)
-    freq = freq[:n // 2]
+    freq = freq[: n // 2]
     return power, freq
 
 
@@ -386,7 +398,7 @@ def power_spectrum_by_sliding_window(x, fs, window_duration=5):
     x = x * window_shape
     y = np.fft.rfft(x, axis=1) / window_size
     y = np.abs(y).mean(axis=0)
-    f = np.fft.rfftfreq(window_size, d=1. / fs)
+    f = np.fft.rfftfreq(window_size, d=1.0 / fs)
     return f, y
 
 
@@ -412,7 +424,7 @@ def extract_pages_from_centers(sequence, centers, page_size, border_size=0):
     max_sample = np.max(centers) + (page_size // 2) + border_size + 2
     if max_sample > sequence.size:
         extended_sequence = np.zeros(max_sample).astype(sequence.dtype)
-        extended_sequence[:sequence.size] = sequence
+        extended_sequence[: sequence.size] = sequence
     else:
         extended_sequence = sequence
 
@@ -453,7 +465,7 @@ def extract_pages(sequence, pages_indices, page_size, border_size=0):
     max_sample = (pages_indices.max() + 1) * page_size + border_size + 1
     extended_sequence = np.zeros(max_sample).astype(sequence.dtype)
     if extended_sequence.size > sequence.size:
-        extended_sequence[:sequence.size] = sequence
+        extended_sequence[: sequence.size] = sequence
     else:
         extended_sequence = sequence
 
@@ -479,7 +491,8 @@ def extract_pages_for_stamps(stamps, pages_indices, page_size):
     stamps_start_page = np.floor(stamps[:, 0] / page_size)
     stamps_end_page = np.floor(stamps[:, 1] / page_size)
     useful_idx = np.where(
-        np.isin(stamps_start_page, pages_indices) | np.isin(stamps_end_page, pages_indices)
+        np.isin(stamps_start_page, pages_indices)
+        | np.isin(stamps_end_page, pages_indices)
     )[0]
     pages_list = stamps[useful_idx, :]
 
@@ -508,7 +521,7 @@ def simple_split_with_list(x, y, train_fraction=0.8, seed=None):
     """
     n_subjects = len(x)
     n_train = int(n_subjects * train_fraction)
-    print('Split: Total %d -- Training %d' % (n_subjects, n_train))
+    print("Split: Total %d -- Training %d" % (n_subjects, n_train))
     random_idx = np.random.RandomState(seed=seed).permutation(n_subjects)
     train_idx = random_idx[:n_train]
     test_idx = random_idx[n_train:]
@@ -524,7 +537,7 @@ def split_ids_list(subject_ids, train_fraction=0.75, seed=None, verbose=True):
     n_subjects = len(subject_ids)
     n_train = int(n_subjects * train_fraction)
     if verbose:
-        print('Split IDs: Total %d -- Training %d' % (n_subjects, n_train))
+        print("Split IDs: Total %d -- Training %d" % (n_subjects, n_train))
     random_idx = np.random.RandomState(seed=seed).permutation(n_subjects)
     train_idx = random_idx[:n_train]
     test_idx = random_idx[n_train:]
@@ -537,17 +550,19 @@ def split_ids_list_v2(subject_ids, split_id, train_fraction=0.75, verbose=False)
     n_subjects = len(subject_ids)
     n_train = int(n_subjects * train_fraction)
     if verbose:
-        print('Split IDs: Total %d -- Training %d' % (n_subjects, n_train))
+        print("Split IDs: Total %d -- Training %d" % (n_subjects, n_train))
     n_val = n_subjects - n_train
     start_idx = split_id * n_val
     epoch = int(start_idx / n_subjects)
     attempts = 1
     while True:
         random_idx_1 = np.random.RandomState(seed=epoch).permutation(n_subjects)
-        random_idx_2 = np.random.RandomState(seed=epoch+attempts).permutation(n_subjects)
+        random_idx_2 = np.random.RandomState(seed=epoch + attempts).permutation(
+            n_subjects
+        )
         random_idx = np.concatenate([random_idx_1, random_idx_2])
         start_idx_relative = start_idx % n_subjects
-        val_idx = random_idx[start_idx_relative:(start_idx_relative + n_val)]
+        val_idx = random_idx[start_idx_relative : (start_idx_relative + n_val)]
         if np.unique(val_idx).size == n_val:
             break
         else:
@@ -590,16 +605,16 @@ def shuffle_data_with_ids(x, y, sub_ids, seed=None):
 
 
 def stamp_intersects_set(single_stamp, set_stamps):
-    """ Assumes shape (2, 1) for single stamp and (N, 2) for set_stamps"""
+    """Assumes shape (2, 1) for single stamp and (N, 2) for set_stamps"""
     candidates = np.where(
-        (set_stamps[:, 0] <= single_stamp[1])
-        & (set_stamps[:, 1] >= single_stamp[0]))[0]
+        (set_stamps[:, 0] <= single_stamp[1]) & (set_stamps[:, 1] >= single_stamp[0])
+    )[0]
     for j in candidates:
-        intersection = min(
-            single_stamp[1], set_stamps[j, 1]
-        ) - max(
-            single_stamp[0], set_stamps[j, 0]
-        ) + 1
+        intersection = (
+            min(single_stamp[1], set_stamps[j, 1])
+            - max(single_stamp[0], set_stamps[j, 0])
+            + 1
+        )
         if intersection > 0:
             return True
     return False
@@ -607,7 +622,8 @@ def stamp_intersects_set(single_stamp, set_stamps):
 
 def filter_stamps(stamps, start_sample, end_sample, return_idx=False):
     useful_idx = np.where(
-        (stamps[:, 1] >= start_sample) & (stamps[:, 0] <= end_sample))[0]
+        (stamps[:, 1] >= start_sample) & (stamps[:, 0] <= end_sample)
+    )[0]
     useful_stamps = stamps[useful_idx, :]
 
     if return_idx:
@@ -624,14 +640,14 @@ def get_overlap_matrix(stamps_1, stamps_2):
     overlaps = np.zeros((n_gs, n_det))
     for i in range(n_gs):
         candidates = np.where(
-            (stamps_2[:, 0] <= stamps_1[i, 1])
-            & (stamps_2[:, 1] >= stamps_1[i, 0]))[0]
+            (stamps_2[:, 0] <= stamps_1[i, 1]) & (stamps_2[:, 1] >= stamps_1[i, 0])
+        )[0]
         for j in candidates:
-            intersection = min(
-                stamps_1[i, 1], stamps_2[j, 1]
-            ) - max(
-                stamps_1[i, 0], stamps_2[j, 0]
-            ) + 1
+            intersection = (
+                min(stamps_1[i, 1], stamps_2[j, 1])
+                - max(stamps_1[i, 0], stamps_2[j, 0])
+                + 1
+            )
             if intersection > 0:
                 overlaps[i, j] = 1
     return overlaps
@@ -662,7 +678,7 @@ def overlapping_groups(overlap_matrix):
 
 
 def apply_lowpass(signal, fs, cutoff, filter_duration_ref=6, wave_expansion_factor=0.5):
-    numtaps = fs * filter_duration_ref / (cutoff ** wave_expansion_factor)
+    numtaps = fs * filter_duration_ref / (cutoff**wave_expansion_factor)
     numtaps = int(2 * (numtaps // 2) + 1)  # ensure odd numtaps
     lp_kernel = firwin(numtaps, cutoff=cutoff, window="hann", fs=fs).astype(np.float32)
     lp_kernel /= lp_kernel.sum()
@@ -670,26 +686,32 @@ def apply_lowpass(signal, fs, cutoff, filter_duration_ref=6, wave_expansion_fact
     return new_signal
 
 
-def apply_highpass(signal, fs, cutoff, filter_duration_ref=6, wave_expansion_factor=0.5):
-    numtaps = fs * filter_duration_ref / (cutoff ** wave_expansion_factor)
+def apply_highpass(
+    signal, fs, cutoff, filter_duration_ref=6, wave_expansion_factor=0.5
+):
+    numtaps = fs * filter_duration_ref / (cutoff**wave_expansion_factor)
     numtaps = int(2 * (numtaps // 2) + 1)  # ensure odd numtaps
     lp_kernel = firwin(numtaps, cutoff=cutoff, window="hann", fs=fs).astype(np.float32)
     lp_kernel /= lp_kernel.sum()
     # HP = delta - LP
     hp_kernel = -lp_kernel
-    hp_kernel[numtaps//2] += 1
+    hp_kernel[numtaps // 2] += 1
     new_signal = filter_fir(hp_kernel, signal)
     return new_signal
 
 
-def apply_bandpass(signal, fs, lowcut, highcut, filter_duration_ref=6, wave_expansion_factor=0.5):
+def apply_bandpass(
+    signal, fs, lowcut, highcut, filter_duration_ref=6, wave_expansion_factor=0.5
+):
     new_signal = signal
     if lowcut is not None:
         new_signal = apply_highpass(
-            new_signal, fs, lowcut, filter_duration_ref, wave_expansion_factor)
+            new_signal, fs, lowcut, filter_duration_ref, wave_expansion_factor
+        )
     if highcut is not None:
         new_signal = apply_lowpass(
-            new_signal, fs, highcut, filter_duration_ref, wave_expansion_factor)
+            new_signal, fs, highcut, filter_duration_ref, wave_expansion_factor
+        )
     return new_signal
 
 
@@ -697,9 +719,9 @@ def broad_filter_moda(x, fs, lowcut=0.3, highcut=30, filter_order=10):
     """Returns filtered signal sampled at fs Hz, with a 0.3-30 Hz
     bandpass."""
     print("Applying MODA bandpass filter")
-    sos = butter(filter_order, lowcut, btype='highpass', fs=fs, output='sos')
+    sos = butter(filter_order, lowcut, btype="highpass", fs=fs, output="sos")
     x = sosfiltfilt(sos, x)
-    sos = butter(filter_order, highcut, btype='lowpass', fs=fs, output='sos')
+    sos = butter(filter_order, highcut, btype="lowpass", fs=fs, output="sos")
     x = sosfiltfilt(sos, x)
     return x
 
@@ -713,14 +735,15 @@ def compute_pagewise_fft(x, fs, window_duration=2):
     x = x * window_shape
     y = np.fft.rfft(x, axis=2) / window_size
     y = np.abs(y).mean(axis=1)
-    f = np.fft.rfftfreq(window_size, d=1. / fs)
+    f = np.fft.rfftfreq(window_size, d=1.0 / fs)
     return f, y
 
 
 def compute_pagewise_powerlaw(f, y, broad_band=(2, 30), sigma_band=(10, 17)):
     # Input y is [n_pages, n_freqs]
     locs_to_use = np.where(
-        ((f >= broad_band[0]) & (f < sigma_band[0])) | ((f > sigma_band[1]) & (f <= broad_band[1]))
+        ((f >= broad_band[0]) & (f < sigma_band[0]))
+        | ((f > sigma_band[1]) & (f <= broad_band[1]))
     )[0]
     x_data = f[locs_to_use]
     y_data = y[:, locs_to_use]
@@ -729,7 +752,9 @@ def compute_pagewise_powerlaw(f, y, broad_band=(2, 30), sigma_band=(10, 17)):
     scale_l = []
     exponent_l = []
     for page_log_y in log_y:
-        polycoefs = np.polynomial.Polynomial.fit(log_x, page_log_y, deg=1).convert().coef
+        polycoefs = (
+            np.polynomial.Polynomial.fit(log_x, page_log_y, deg=1).convert().coef
+        )
         scale = np.exp(polycoefs[0])
         exponent = polycoefs[1]
         # power = scale * (freq ** exponent)

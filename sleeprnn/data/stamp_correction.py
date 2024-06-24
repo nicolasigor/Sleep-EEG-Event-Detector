@@ -62,7 +62,7 @@ def filter_duration_stamps(marks, fs, min_duration, max_duration, repair_long=Tr
 
             if repair_long:
                 # Remove weird annotations (extremely long)
-                feasible_idx = np.where(durations <= 2*max_duration)[0]
+                feasible_idx = np.where(durations <= 2 * max_duration)[0]
                 marks = marks[feasible_idx, :]
                 durations = durations[feasible_idx]
 

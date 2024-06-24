@@ -7,14 +7,14 @@ from sleeprnn.helpers import misc
 
 
 def performance_vs_iou_with_seeds(
-        dataset,
-        predictions_dict,
-        optimal_thr_list,
-        iou_curve_axis,
-        iou_hist_bins,
-        task_mode,
-        which_expert,
-        set_name=constants.TEST_SUBSET
+    dataset,
+    predictions_dict,
+    optimal_thr_list,
+    iou_curve_axis,
+    iou_hist_bins,
+    task_mode,
+    which_expert,
+    set_name=constants.TEST_SUBSET,
 ):
     # Seeds
     seed_id_list = list(predictions_dict.keys())
@@ -32,16 +32,15 @@ def performance_vs_iou_with_seeds(
     for k in seed_id_list:
         # Expert
         subset_data = FeederDataset(
-            dataset, ids_dict[k][set_name],
-            task_mode, which_expert=which_expert)
+            dataset, ids_dict[k][set_name], task_mode, which_expert=which_expert
+        )
         events = subset_data.get_stamps()
         # Model
         prediction_data = predictions_dict[k][set_name]
         prediction_data.set_probability_threshold(optimal_thr_list[k])
         detections = prediction_data.get_stamps()
         # Measure stuff
-        results = performance_vs_iou(
-            events, detections, iou_curve_axis, iou_hist_bins)
+        results = performance_vs_iou(events, detections, iou_curve_axis, iou_hist_bins)
         tmp_f1_vs_iou.append(results[constants.F1_VS_IOU])
         tmp_recall_vs_iou.append(results[constants.RECALL_VS_IOU])
         tmp_precision_vs_iou.append(results[constants.PRECISION_VS_IOU])
@@ -68,28 +67,40 @@ def performance_vs_iou_with_seeds(
         constants.MEAN_IOU: tmp_mean_iou,
         constants.MEAN_AF1: tmp_mean_af1,
         constants.IQR_LOW_IOU: tmp_iqr_low_iou,
-        constants.IQR_HIGH_IOU: tmp_iqr_high_iou
+        constants.IQR_HIGH_IOU: tmp_iqr_high_iou,
     }
     return model_data_dict
 
 
 def performance_vs_iou(events, detections, iou_curve_axis, iou_hist_bins):
     # Matching
-    iou_matchings, idx_matchings = metrics.matching_with_list(
-        events, detections)
+    iou_matchings, idx_matchings = metrics.matching_with_list(events, detections)
     # Measure stuff
     seed_f1_vs_iou = metrics.metric_vs_iou_with_list(
-        events, detections, iou_curve_axis,
-        iou_matching_list=iou_matchings, metric_name=constants.F1_SCORE)
+        events,
+        detections,
+        iou_curve_axis,
+        iou_matching_list=iou_matchings,
+        metric_name=constants.F1_SCORE,
+    )
     seed_recall_vs_iou = metrics.metric_vs_iou_with_list(
-        events, detections, iou_curve_axis,
-        iou_matching_list=iou_matchings, metric_name=constants.RECALL)
+        events,
+        detections,
+        iou_curve_axis,
+        iou_matching_list=iou_matchings,
+        metric_name=constants.RECALL,
+    )
     seed_precision_vs_iou = metrics.metric_vs_iou_with_list(
-        events, detections, iou_curve_axis,
-        iou_matching_list=iou_matchings, metric_name=constants.PRECISION)
+        events,
+        detections,
+        iou_curve_axis,
+        iou_matching_list=iou_matchings,
+        metric_name=constants.PRECISION,
+    )
 
     seed_mean_af1 = metrics.average_metric_with_list(
-        events, detections, iou_matching_list=iou_matchings)
+        events, detections, iou_matching_list=iou_matchings
+    )
     seed_mean_iou = []
     seed_iou_hist = []
     seed_iqr_low_iou = []
@@ -99,8 +110,7 @@ def performance_vs_iou(events, detections, iou_curve_axis, iou_hist_bins):
         iou_mean = np.mean(iou_nonzero)
         iou_low_iqr = np.percentile(iou_nonzero, 25)
         iou_high_iqr = np.percentile(iou_nonzero, 75)
-        iou_hist, _ = np.histogram(
-            iou_nonzero, bins=iou_hist_bins, density=True)
+        iou_hist, _ = np.histogram(iou_nonzero, bins=iou_hist_bins, density=True)
         seed_mean_iou.append(iou_mean)
         seed_iqr_low_iou.append(iou_low_iqr)
         seed_iqr_high_iou.append(iou_high_iqr)
@@ -119,18 +129,18 @@ def performance_vs_iou(events, detections, iou_curve_axis, iou_hist_bins):
         constants.MEAN_IOU: seed_mean_iou,
         constants.MEAN_AF1: seed_mean_af1,
         constants.IQR_LOW_IOU: seed_iqr_low_iou,
-        constants.IQR_HIGH_IOU: seed_iqr_high_iou
+        constants.IQR_HIGH_IOU: seed_iqr_high_iou,
     }
     return results
 
 
 def duration_scatter_with_seeds(
-        dataset,
-        predictions_dict,
-        optimal_thr_list,
-        task_mode,
-        which_expert,
-        set_name=constants.TEST_SUBSET
+    dataset,
+    predictions_dict,
+    optimal_thr_list,
+    task_mode,
+    which_expert,
+    set_name=constants.TEST_SUBSET,
 ):
     # Seeds
     seed_id_list = list(predictions_dict.keys())
@@ -141,16 +151,15 @@ def duration_scatter_with_seeds(
     for k in seed_id_list:
         # Expert
         subset_data = FeederDataset(
-            dataset, ids_dict[k][set_name],
-            task_mode, which_expert=which_expert)
+            dataset, ids_dict[k][set_name], task_mode, which_expert=which_expert
+        )
         events = subset_data.get_stamps()
         # Model
         prediction_data = predictions_dict[k][set_name]
         prediction_data.set_probability_threshold(optimal_thr_list[k])
         detections = prediction_data.get_stamps()
         # Matching
-        iou_matchings, idx_matchings = metrics.matching_with_list(
-            events, detections)
+        iou_matchings, idx_matchings = metrics.matching_with_list(events, detections)
         seed_matched_real_idx = []
         seed_matched_det_idx = []
         seed_matched_real_dur = []
@@ -168,22 +177,22 @@ def duration_scatter_with_seeds(
             seed_matched_real_dur.append(matched_real_dur)
             seed_matched_det_dur.append(matched_det_dur)
         results[k] = {
-            'expert_idx': seed_matched_real_idx,
-            'detection_idx': seed_matched_det_idx,
-            'expert_duration': seed_matched_real_dur,
-            'detection_duration': seed_matched_det_dur
+            "expert_idx": seed_matched_real_idx,
+            "detection_idx": seed_matched_det_idx,
+            "expert_duration": seed_matched_real_dur,
+            "detection_duration": seed_matched_det_dur,
         }
     return results
 
 
 def precision_recall_curve_with_seeds(
-        dataset,
-        predictions_dict,
-        pr_curve_thr,
-        iou_thr,
-        task_mode,
-        which_expert,
-        set_name=constants.TEST_SUBSET
+    dataset,
+    predictions_dict,
+    pr_curve_thr,
+    iou_thr,
+    task_mode,
+    which_expert,
+    set_name=constants.TEST_SUBSET,
 ):
     # Seeds
     seed_id_list = list(predictions_dict.keys())
@@ -192,16 +201,16 @@ def precision_recall_curve_with_seeds(
     # Performance
     pr_curve = {}
     for k in seed_id_list:
-        print('Processing seed %d' % k, flush=True)
+        print("Processing seed %d" % k, flush=True)
         # Columns are [x: recall, y: precision]
         pr_curve[k] = {
             constants.RECALL: np.zeros(len(pr_curve_thr)),
-            constants.PRECISION: np.zeros(len(pr_curve_thr))
+            constants.PRECISION: np.zeros(len(pr_curve_thr)),
         }
         # Expert
         subset_data = FeederDataset(
-            dataset, ids_dict[k][set_name],
-            task_mode, which_expert=which_expert)
+            dataset, ids_dict[k][set_name], task_mode, which_expert=which_expert
+        )
         events = subset_data.get_stamps()
         # Model
         prediction_data = predictions_dict[k][set_name]
@@ -211,7 +220,8 @@ def precision_recall_curve_with_seeds(
             # Measure stuff
             this_stats = [
                 metrics.by_event_confusion(this_y, this_y_pred, iou_thr=iou_thr)
-                for (this_y, this_y_pred) in zip(events, detections)]
+                for (this_y, this_y_pred) in zip(events, detections)
+            ]
             this_recall = np.mean([m[constants.RECALL] for m in this_stats])
             this_precision = np.mean([m[constants.PRECISION] for m in this_stats])
             pr_curve[k][constants.RECALL][i] = this_recall

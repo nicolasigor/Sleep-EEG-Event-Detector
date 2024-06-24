@@ -2,7 +2,9 @@ import numpy as np
 from sleeprnn.data import utils
 
 
-def transform_predicted_proba_to_adjusted_proba(predicted_proba, optimal_threshold, eps=1e-8):
+def transform_predicted_proba_to_adjusted_proba(
+    predicted_proba, optimal_threshold, eps=1e-8
+):
     """
     Adjusts probability vector so that
     adjusted_proba > 0.5 is equivalent to predicted_proba > optimal_threshold
@@ -37,7 +39,9 @@ def transform_predicted_proba_to_adjusted_proba(predicted_proba, optimal_thresho
     return adjusted_proba
 
 
-def transform_thr_for_adjusted_to_thr_for_predicted(thr_for_adjusted, optimal_threshold):
+def transform_thr_for_adjusted_to_thr_for_predicted(
+    thr_for_adjusted, optimal_threshold
+):
     """
     Returns a threshold that can be applied to the predicted probabilities so that
     predicted_proba > thr_for_predicted is equivalent to adjusted_proba > thr_for_adjusted
@@ -47,7 +51,9 @@ def transform_thr_for_adjusted_to_thr_for_predicted(thr_for_adjusted, optimal_th
     :return: the equivalent threshold for class assignment in predicted probabilities
     """
     num = thr_for_adjusted * optimal_threshold
-    den = thr_for_adjusted * optimal_threshold + (1.0 - thr_for_adjusted) * (1.0 - optimal_threshold)
+    den = thr_for_adjusted * optimal_threshold + (1.0 - thr_for_adjusted) * (
+        1.0 - optimal_threshold
+    )
     thr_for_predicted = num / den
     return thr_for_predicted
 
@@ -55,9 +61,7 @@ def transform_thr_for_adjusted_to_thr_for_predicted(thr_for_adjusted, optimal_th
 def get_event_probabilities(marks, probability, downsampling_factor=8, proba_prc=75):
     probability_upsampled = np.repeat(probability, downsampling_factor)
     # Retrieve segments of probabilities
-    marks_segments = [probability_upsampled[m[0]:(m[1] + 1)] for m in marks]
+    marks_segments = [probability_upsampled[m[0] : (m[1] + 1)] for m in marks]
     marks_proba = [np.percentile(m_seg, proba_prc) for m_seg in marks_segments]
     marks_proba = np.array(marks_proba)
     return marks_proba
-
-

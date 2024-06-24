@@ -10,29 +10,37 @@ from sleeprnn.data import utils
 NSRR_PATH = os.path.abspath("/home/ntapia/Projects/Sleep_Databases/NSRR_Databases")
 
 NSRR_DATA_PATHS = {
-    'shhs1': {
-        'edf': os.path.join(NSRR_PATH, "shhs/polysomnography/edfs/shhs1"),
-        'annot': os.path.join(NSRR_PATH, "shhs/polysomnography/annotations-events-nsrr/shhs1"),
+    "shhs1": {
+        "edf": os.path.join(NSRR_PATH, "shhs/polysomnography/edfs/shhs1"),
+        "annot": os.path.join(
+            NSRR_PATH, "shhs/polysomnography/annotations-events-nsrr/shhs1"
+        ),
     },
-    'mros1': {
-        'edf': os.path.join(NSRR_PATH, "mros/polysomnography/edfs/visit1"),
-        'annot': os.path.join(NSRR_PATH, "mros/polysomnography/annotations-events-nsrr/visit1")
+    "mros1": {
+        "edf": os.path.join(NSRR_PATH, "mros/polysomnography/edfs/visit1"),
+        "annot": os.path.join(
+            NSRR_PATH, "mros/polysomnography/annotations-events-nsrr/visit1"
+        ),
     },
-    'chat1': {
-        'edf': os.path.join(NSRR_PATH, "chat/polysomnography/edfs/visit1"),
-        'annot': os.path.join(NSRR_PATH, "chat/polysomnography/annotations-events-nsrr/visit1")
+    "chat1": {
+        "edf": os.path.join(NSRR_PATH, "chat/polysomnography/edfs/visit1"),
+        "annot": os.path.join(
+            NSRR_PATH, "chat/polysomnography/annotations-events-nsrr/visit1"
+        ),
     },
-    'ccshs': {
-        'edf': os.path.join(NSRR_PATH, "ccshs/polysomnography/edfs"),
-        'annot': os.path.join(NSRR_PATH, "ccshs/polysomnography/annotations-events-nsrr")
+    "ccshs": {
+        "edf": os.path.join(NSRR_PATH, "ccshs/polysomnography/edfs"),
+        "annot": os.path.join(
+            NSRR_PATH, "ccshs/polysomnography/annotations-events-nsrr"
+        ),
     },
-    'cfs': {
-        'edf': os.path.join(NSRR_PATH, "cfs/polysomnography/edfs"),
-        'annot': os.path.join(NSRR_PATH, "cfs/polysomnography/annotations-events-nsrr")
+    "cfs": {
+        "edf": os.path.join(NSRR_PATH, "cfs/polysomnography/edfs"),
+        "annot": os.path.join(NSRR_PATH, "cfs/polysomnography/annotations-events-nsrr"),
     },
-    'sof': {
-        'edf': os.path.join(NSRR_PATH, "sof/polysomnography/edfs"),
-        'annot': os.path.join(NSRR_PATH, "sof/polysomnography/annotations-events-nsrr")
+    "sof": {
+        "edf": os.path.join(NSRR_PATH, "sof/polysomnography/edfs"),
+        "annot": os.path.join(NSRR_PATH, "sof/polysomnography/annotations-events-nsrr"),
     },
 }
 
@@ -77,10 +85,10 @@ def prepare_paths(edf_folder, annot_folder):
     """
 
     edf_files = os.listdir(edf_folder)
-    edf_files = [f for f in edf_files if '.edf' in f]
+    edf_files = [f for f in edf_files if ".edf" in f]
 
     annot_files = os.listdir(annot_folder)
-    annot_files = [f for f in annot_files if '.xml' in f]
+    annot_files = [f for f in annot_files if ".xml" in f]
 
     edf_ids = [extract_id(fname, False) for fname in edf_files]
     annot_ids = [extract_id(fname, True) for fname in annot_files]
@@ -94,8 +102,8 @@ def prepare_paths(edf_folder, annot_folder):
         edf_loc = edf_ids.index(single_id)
         annot_loc = annot_ids.index(single_id)
         paths_dict[single_id] = {
-            'edf': os.path.join(edf_folder, edf_files[edf_loc]),
-            'annot': os.path.join(annot_folder, annot_files[annot_loc])
+            "edf": os.path.join(edf_folder, edf_files[edf_loc]),
+            "annot": os.path.join(annot_folder, annot_files[annot_loc]),
         }
     return paths_dict
 
@@ -103,10 +111,17 @@ def prepare_paths(edf_folder, annot_folder):
 def read_hypnogram(annot_path, verbose=False, assumed_epoch_length_if_missing=30):
     tree = ET.parse(annot_path)
     root = tree.getroot()
-    scored_events = root.find('ScoredEvents')
+    scored_events = root.find("ScoredEvents")
     epoch_length_text = root.find("EpochLength").text
     if epoch_length_text is None:
-        print("Missing epoch length, assuming %s [s]" % assumed_epoch_length_if_missing) if verbose else None
+        (
+            print(
+                "Missing epoch length, assuming %s [s]"
+                % assumed_epoch_length_if_missing
+            )
+            if verbose
+            else None
+        )
         epoch_length = assumed_epoch_length_if_missing
     else:
         epoch_length = float(epoch_length_text)
@@ -146,9 +161,9 @@ def get_edf_info(edf_path):
 
 def read_signal_from_file(file, channel_name):
     units_to_factor_map = {
-        'V': 1e6,
-        'mV': 1e3,
-        'uV': 1.0,
+        "V": 1e6,
+        "mV": 1e3,
+        "uV": 1.0,
     }
     channel_names = file.getSignalLabels()
     channel_to_extract = channel_names.index(channel_name)
@@ -190,7 +205,9 @@ def short_signal_to_n2(signal, hypnogram, epoch_samples, n2_name):
     n2_pages = np.where(hypnogram == n2_name)[0]
     valid_pages = np.concatenate([n2_pages - 1, n2_pages, n2_pages + 1])
     valid_pages = np.clip(valid_pages, a_min=0, a_max=(hypnogram.size - 1))
-    valid_pages = np.unique(valid_pages)  # it is ensured to have context at each side of n2 pages
+    valid_pages = np.unique(
+        valid_pages
+    )  # it is ensured to have context at each side of n2 pages
 
     # Now simplify
     hypnogram = hypnogram[valid_pages]

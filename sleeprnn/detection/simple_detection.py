@@ -22,14 +22,14 @@ def get_sigma_envelope(x, fs, lowcut=11, highcut=16, win_duration=0.1):
 
 
 def simple_detector_from_envelope(
-        signal_sigma_env,
-        fs,
-        amplitude_high_thr,
-        amplitude_low_thr_factor=4/9,
-        min_separation=0.3,
-        min_duration_low=0.5,
-        min_duration_high=0.3,
-        max_duration=3.0,
+    signal_sigma_env,
+    fs,
+    amplitude_high_thr,
+    amplitude_low_thr_factor=4 / 9,
+    min_separation=0.3,
+    min_duration_low=0.5,
+    min_duration_high=0.3,
+    max_duration=3.0,
 ):
     amplitude_low_thr = amplitude_high_thr * amplitude_low_thr_factor
 
@@ -41,15 +41,17 @@ def simple_detector_from_envelope(
     # Group candidate events closer than 0.3s (to remove small fluctuations)
     # and remove events shorter than 0.5s (so trivially meets criteria of duration in lower amplitude)
     events = stamp_correction.combine_close_stamps(
-        events, fs, min_separation=min_separation)
+        events, fs, min_separation=min_separation
+    )
     events = stamp_correction.filter_duration_stamps(
-        events, fs, min_duration=min_duration_low, max_duration=None)
+        events, fs, min_duration=min_duration_low, max_duration=None
+    )
 
     # Criteria of higher amplitude
     min_duration_high = min_duration_high * fs
     new_events = []
     for e in events:
-        data = feat[e[0]:e[1] + 1]
+        data = feat[e[0] : e[1] + 1]
         data_in_2 = np.sum(data == 2)
         if data_in_2 >= min_duration_high:
             new_events.append(e)
@@ -60,24 +62,29 @@ def simple_detector_from_envelope(
 
     # Now remove events that are too long
     events = stamp_correction.filter_duration_stamps(
-        events, fs, min_duration=min_duration_low, max_duration=max_duration)
+        events, fs, min_duration=min_duration_low, max_duration=max_duration
+    )
 
     return events
 
 
 def simple_detector_absolute(
-        x,
-        fs,
-        amplitude_high_thr,
-        amplitude_low_thr_factor=4/9,
-        min_separation=0.3,
-        min_duration_low=0.5,
-        min_duration_high=0.3,
-        max_duration=3.0,
-        lowcut=11, highcut=16, win_duration=0.1
+    x,
+    fs,
+    amplitude_high_thr,
+    amplitude_low_thr_factor=4 / 9,
+    min_separation=0.3,
+    min_duration_low=0.5,
+    min_duration_high=0.3,
+    max_duration=3.0,
+    lowcut=11,
+    highcut=16,
+    win_duration=0.1,
 ):
     """Detection using absolute amplitudes"""
-    signal_sigma_env = get_sigma_envelope(x, fs, lowcut=lowcut, highcut=highcut, win_duration=win_duration)
+    signal_sigma_env = get_sigma_envelope(
+        x, fs, lowcut=lowcut, highcut=highcut, win_duration=win_duration
+    )
 
     # detect
     events = simple_detector_from_envelope(
@@ -88,25 +95,30 @@ def simple_detector_absolute(
         min_separation=min_separation,
         min_duration_low=min_duration_low,
         min_duration_high=min_duration_high,
-        max_duration=max_duration)
+        max_duration=max_duration,
+    )
     return events
 
 
 def simple_detector_relative(
-        x,
-        fs,
-        amplitude_high_factor,
-        pages_to_compute_baseline,
-        page_duration,
-        amplitude_low_thr_factor=4/9,
-        min_separation=0.3,
-        min_duration_low=0.5,
-        min_duration_high=0.3,
-        max_duration=3.0,
-        lowcut=11, highcut=16, win_duration=0.1
+    x,
+    fs,
+    amplitude_high_factor,
+    pages_to_compute_baseline,
+    page_duration,
+    amplitude_low_thr_factor=4 / 9,
+    min_separation=0.3,
+    min_duration_low=0.5,
+    min_duration_high=0.3,
+    max_duration=3.0,
+    lowcut=11,
+    highcut=16,
+    win_duration=0.1,
 ):
     """Detection using amplitudes relative to baseline sigma activity"""
-    signal_sigma_env = get_sigma_envelope(x, fs, lowcut=lowcut, highcut=highcut, win_duration=win_duration)
+    signal_sigma_env = get_sigma_envelope(
+        x, fs, lowcut=lowcut, highcut=highcut, win_duration=win_duration
+    )
 
     # compute baseline
     page_size = int(page_duration * fs)
@@ -124,5 +136,6 @@ def simple_detector_relative(
         min_separation=min_separation,
         min_duration_low=min_duration_low,
         min_duration_high=min_duration_high,
-        max_duration=max_duration)
+        max_duration=max_duration,
+    )
     return events

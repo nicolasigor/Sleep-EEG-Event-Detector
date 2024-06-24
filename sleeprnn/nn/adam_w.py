@@ -90,7 +90,9 @@ class DecoupledWeightDecayExtension:
     def get_config(self):
         config = super().get_config()
         config.update(
-            {"weight_decay": self._serialize_hyperparameter("weight_decay"),}
+            {
+                "weight_decay": self._serialize_hyperparameter("weight_decay"),
+            }
         )
         return config
 
@@ -253,9 +255,7 @@ def extend_with_decoupled_weight_decay(base_optimizer):
         training loss and generalization error in the paper above.
         """
 
-        def __init__(
-            self, weight_decay, *args, **kwargs
-        ):
+        def __init__(self, weight_decay, *args, **kwargs):
             # super delegation is necessary here
             super().__init__(weight_decay, *args, **kwargs)
 

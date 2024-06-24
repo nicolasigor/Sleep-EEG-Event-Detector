@@ -11,14 +11,21 @@ from sleeprnn.common import constants
 
 
 def fit_threshold(
-        feeder_dataset_list,
-        predicted_dataset_list,
-        threshold_space,
-        average_mode,
-        return_best_af1=False
+    feeder_dataset_list,
+    predicted_dataset_list,
+    threshold_space,
+    average_mode,
+    return_best_af1=False,
 ):
-    n_thr = int(np.floor((threshold_space['max'] - threshold_space['min']) / threshold_space['step'] + 1))
-    thr_list = np.array([threshold_space['min'] + threshold_space['step'] * i for i in range(n_thr)])
+    n_thr = int(
+        np.floor(
+            (threshold_space["max"] - threshold_space["min"]) / threshold_space["step"]
+            + 1
+        )
+    )
+    thr_list = np.array(
+        [threshold_space["min"] + threshold_space["step"] * i for i in range(n_thr)]
+    )
     thr_list = np.round(thr_list, 2)
 
     events_list = []
@@ -39,11 +46,11 @@ def fit_threshold(
 
     metric_fn_dict = {
         constants.MACRO_AVERAGE: metrics.average_metric_macro_average,
-        constants.MICRO_AVERAGE: metrics.average_metric_micro_average}
+        constants.MICRO_AVERAGE: metrics.average_metric_micro_average,
+    }
     metric_fn = metric_fn_dict[average_mode]
     af1_list = Parallel(n_jobs=-1)(
-        delayed(metric_fn)(
-            events_list, single_prediction_list)
+        delayed(metric_fn)(events_list, single_prediction_list)
         for single_prediction_list in predictions_at_thr_list
     )
     max_idx = np.argmax(af1_list).item()
@@ -55,12 +62,12 @@ def fit_threshold(
 
 
 def get_optimal_threshold(
-        feeder_dataset_list,
-        predicted_dataset_list,
-        res_thr=0.02,
-        start_thr=0.2,
-        end_thr=0.8,
-        verbose=False
+    feeder_dataset_list,
+    predicted_dataset_list,
+    res_thr=0.02,
+    start_thr=0.2,
+    end_thr=0.8,
+    verbose=False,
 ):
 
     # Check probability boundaries
@@ -81,13 +88,15 @@ def get_optimal_threshold(
     start_thr = max(min_proba, start_thr)
     end_thr = min(max_proba, end_thr)
     if verbose:
-        print('Start thr: %1.4f. End thr: %1.4f' % (start_thr, end_thr))
+        print("Start thr: %1.4f. End thr: %1.4f" % (start_thr, end_thr))
     n_thr = int(np.floor((end_thr - start_thr) / res_thr + 1))
     thr_list = np.array([start_thr + res_thr * i for i in range(n_thr)])
     thr_list = np.round(thr_list, 2)
     if verbose:
-        print('%d thresholds to be evaluated between %1.4f and %1.4f'
-              % (n_thr, thr_list[0], thr_list[-1]))
+        print(
+            "%d thresholds to be evaluated between %1.4f and %1.4f"
+            % (n_thr, thr_list[0], thr_list[-1])
+        )
 
     events_list = []
     for feeder_dataset in feeder_dataset_list:
@@ -107,7 +116,8 @@ def get_optimal_threshold(
 
     af1_list = Parallel(n_jobs=-1)(
         delayed(metrics.average_metric_with_list)(
-            events_list, single_prediction_list, verbose=False)
+            events_list, single_prediction_list, verbose=False
+        )
         for single_prediction_list in predictions_at_thr_list
     )
 
@@ -116,7 +126,6 @@ def get_optimal_threshold(
     #         events_list, single_prediction_list, verbose=False)
     #     for single_prediction_list in predictions_at_thr_list
     # ]
-
 
     # af1_list = []
     # for thr in thr_list:

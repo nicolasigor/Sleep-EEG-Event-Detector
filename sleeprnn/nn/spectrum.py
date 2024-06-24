@@ -12,17 +12,18 @@ from sleeprnn.data.utils import get_kernel
 
 
 def compute_cwt(
-        inputs,
-        fb_list,
-        fs,
-        lower_freq,
-        upper_freq,
-        n_scales,
-        size_factor=1.0,
-        flattening=False,
-        border_crop=0,
-        stride=1,
-        trainable=False):
+    inputs,
+    fb_list,
+    fs,
+    lower_freq,
+    upper_freq,
+    n_scales,
+    size_factor=1.0,
+    flattening=False,
+    border_crop=0,
+    stride=1,
+    trainable=False,
+):
     """Computes the CWT of a batch of signals with the complex Morlet wavelet.
     Please refer to the documentation of compute_wavelets and apply_wavelets to
     see the description of the parameters.
@@ -36,28 +37,31 @@ def compute_cwt(
         size_factor=size_factor,
         flattening=flattening,
         trainable=trainable,
-        name='cmorlet')
+        name="cmorlet",
+    )
     cwt = apply_wavelets(
         inputs=inputs,
         wavelets=wavelets,
         border_crop=border_crop,
         stride=stride,
-        name='cwt')
+        name="cwt",
+    )
     return cwt, wavelets
 
 
 def compute_cwt_rectangular(
-        inputs,
-        fb_list,
-        fs,
-        lower_freq,
-        upper_freq,
-        n_scales,
-        size_factor=1.0,
-        flattening=False,
-        border_crop=0,
-        stride=1,
-        trainable=False):
+    inputs,
+    fb_list,
+    fs,
+    lower_freq,
+    upper_freq,
+    n_scales,
+    size_factor=1.0,
+    flattening=False,
+    border_crop=0,
+    stride=1,
+    trainable=False,
+):
     """Computes the CWT of a batch of signals with the complex Morlet wavelet.
     Please refer to the documentation of compute_wavelets and apply_wavelets to
     see the description of the parameters.
@@ -71,30 +75,33 @@ def compute_cwt_rectangular(
         size_factor=size_factor,
         flattening=flattening,
         trainable=trainable,
-        name='cmorlet')
+        name="cmorlet",
+    )
     cwt = apply_wavelets_rectangular(
         inputs=inputs,
         wavelets=wavelets,
         border_crop=border_crop,
         stride=stride,
-        name='cwt')
+        name="cwt",
+    )
     return cwt, wavelets
 
 
 def compute_wavelets_noisy(
-        fb_list,
-        fs,
-        lower_freq,
-        upper_freq,
-        n_scales,
-        training_flag,
-        noise_intensity,
-        size_factor=1.0,
-        flattening=False,
-        trainable=False,
-        expansion_factor=1.0,
-        trainable_expansion_factor=False,
-        name=None):
+    fb_list,
+    fs,
+    lower_freq,
+    upper_freq,
+    n_scales,
+    training_flag,
+    noise_intensity,
+    size_factor=1.0,
+    flattening=False,
+    trainable=False,
+    expansion_factor=1.0,
+    trainable_expansion_factor=False,
+    name=None,
+):
     """
     Computes the complex morlet wavelets
 
@@ -162,9 +169,10 @@ def compute_wavelets_noisy(
             expansion_factor = np.clip(expansion_factor, a_min=0.02, a_max=0.98)
             q_logit = np.log(expansion_factor / (1.0 - expansion_factor))
             q_logit_tensor = tf.Variable(
-                initial_value=q_logit, trainable=True, name='q_logit', dtype=tf.float32)
+                initial_value=q_logit, trainable=True, name="q_logit", dtype=tf.float32
+            )
             q = tf.nn.sigmoid(q_logit_tensor)
-            tf.summary.scalar('expansion_factor', q)
+            tf.summary.scalar("expansion_factor", q)
         else:
             print("Expansion factor NOT trainable")
             q = tf.cast(expansion_factor, tf.float32)
@@ -176,9 +184,13 @@ def compute_wavelets_noisy(
             # (we enforce positive number and avoids zero division)
             print("Using initial wavelet width %s" % fb)
             fb_tensor = tf.Variable(
-                initial_value=fb, trainable=trainable, name='fb_%d' % j, dtype=tf.float32)
+                initial_value=fb,
+                trainable=trainable,
+                name="fb_%d" % j,
+                dtype=tf.float32,
+            )
             fb_tensor = tf.math.abs(fb_tensor) + 1e-4  # Ensure positivity
-            tf.summary.scalar('fb_%d' % j, fb_tensor)
+            tf.summary.scalar("fb_%d" % j, fb_tensor)
             # We will make a bigger wavelet in case fb grows
             # Note that for the size of the wavelet we use the initial fb value.
             one_side = int(size_factor * s_n * fs * np.sqrt(4.5 * fb))
@@ -195,8 +207,11 @@ def compute_wavelets_noisy(
                 scale_original = scales[i]
                 scale = tf.cond(
                     training_flag,
-                    lambda: scale_original / tf.random.uniform([], 1.0 - noise_intensity, 1.0 + noise_intensity),
                     lambda: scale_original
+                    / tf.random.uniform(
+                        [], 1.0 - noise_intensity, 1.0 + noise_intensity
+                    ),
+                    lambda: scale_original,
                 )
                 scale_expanded = q * scale + (1.0 - q) * s_n
                 norm_constant = tf.sqrt(np.pi * fb_tensor) * scale_expanded * fs / 2.0
@@ -226,17 +241,18 @@ def compute_wavelets_noisy(
 
 
 def compute_wavelets(
-        fb_list,
-        fs,
-        lower_freq,
-        upper_freq,
-        n_scales,
-        size_factor=1.0,
-        flattening=False,
-        trainable=False,
-        expansion_factor=1.0,
-        trainable_expansion_factor=False,
-        name=None):
+    fb_list,
+    fs,
+    lower_freq,
+    upper_freq,
+    n_scales,
+    size_factor=1.0,
+    flattening=False,
+    trainable=False,
+    expansion_factor=1.0,
+    trainable_expansion_factor=False,
+    name=None,
+):
     """
     Computes the complex morlet wavelets
 
@@ -299,9 +315,10 @@ def compute_wavelets(
             expansion_factor = np.clip(expansion_factor, a_min=0.02, a_max=0.98)
             q_logit = np.log(expansion_factor / (1.0 - expansion_factor))
             q_logit_tensor = tf.Variable(
-                initial_value=q_logit, trainable=True, name='q_logit', dtype=tf.float32)
+                initial_value=q_logit, trainable=True, name="q_logit", dtype=tf.float32
+            )
             q = tf.nn.sigmoid(q_logit_tensor)
-            tf.summary.scalar('expansion_factor', q)
+            tf.summary.scalar("expansion_factor", q)
         else:
             q = tf.cast(expansion_factor, tf.float32)
 
@@ -311,9 +328,13 @@ def compute_wavelets(
             # Trainable fb value
             # (we enforce positive number and avoids zero division)
             fb_tensor = tf.Variable(
-                initial_value=fb, trainable=trainable, name='fb_%d' % j, dtype=tf.float32)
+                initial_value=fb,
+                trainable=trainable,
+                name="fb_%d" % j,
+                dtype=tf.float32,
+            )
             fb_tensor = tf.math.abs(fb_tensor)  # Ensure positivity
-            tf.summary.scalar('fb_%d' % j, fb_tensor)
+            tf.summary.scalar("fb_%d" % j, fb_tensor)
             # We will make a bigger wavelet in case fb grows
             # Note that for the size of the wavelet we use the initial fb value.
             one_side = int(size_factor * s_n * fs * np.sqrt(4.5 * fb))
@@ -354,12 +375,7 @@ def compute_wavelets(
     return wavelets, frequencies
 
 
-def apply_wavelets(
-        inputs,
-        wavelets,
-        border_crop=0,
-        stride=1,
-        name=None):
+def apply_wavelets(inputs, wavelets, border_crop=0, stride=1, name=None):
     """
     CWT layer implementation in Tensorflow that returns the scalograms tensor.
 
@@ -385,7 +401,7 @@ def apply_wavelets(
     n_scalograms = len(wavelets)
 
     # Generate the scalograms
-    border_crop = int(border_crop/stride)
+    border_crop = int(border_crop / stride)
     start = border_crop
     if border_crop <= 0:
         end = None
@@ -400,19 +416,24 @@ def apply_wavelets(
         inputs_expand = tf.expand_dims(inputs_expand, axis=3)
         scalograms_list = []
         for j in range(n_scalograms):
-            with tf.name_scope('%s_%d' % (name, j)):
+            with tf.name_scope("%s_%d" % (name, j)):
                 bank_real, bank_imag = wavelets[j]  # n_scales filters each
                 bank_imag = -bank_imag  # Conjugation
                 out_real = tf.nn.conv2d(
-                    input=inputs_expand, filter=bank_real,
-                    strides=[1, 1, stride, 1], padding="SAME")
+                    input=inputs_expand,
+                    filter=bank_real,
+                    strides=[1, 1, stride, 1],
+                    padding="SAME",
+                )
                 out_imag = tf.nn.conv2d(
-                    input=inputs_expand, filter=bank_imag,
-                    strides=[1, 1, stride, 1], padding="SAME")
+                    input=inputs_expand,
+                    filter=bank_imag,
+                    strides=[1, 1, stride, 1],
+                    padding="SAME",
+                )
                 out_real_crop = out_real[:, :, start:end, :]
                 out_imag_crop = out_imag[:, :, start:end, :]
-                out_power = tf.sqrt(tf.square(out_real_crop)
-                                    + tf.square(out_imag_crop))
+                out_power = tf.sqrt(tf.square(out_real_crop) + tf.square(out_imag_crop))
                 out_angle = tf.atan2(out_imag_crop, out_real_crop)
                 out_concat = tf.concat([out_power, out_angle], axis=1)
                 # [batch, 2, time_len, n_scales]->[batch, time_len, n_scales, 2]
@@ -423,12 +444,7 @@ def apply_wavelets(
     return scalograms
 
 
-def apply_wavelets_rectangular(
-        inputs,
-        wavelets,
-        border_crop=0,
-        stride=1,
-        name=None):
+def apply_wavelets_rectangular(inputs, wavelets, border_crop=0, stride=1, name=None):
     """
     CWT layer implementation in Tensorflow that returns the scalograms tensor.
 
@@ -454,7 +470,7 @@ def apply_wavelets_rectangular(
     n_scalograms = len(wavelets)
 
     # Generate the scalograms
-    border_crop = int(border_crop/stride)
+    border_crop = int(border_crop / stride)
     start = border_crop
     if border_crop <= 0:
         end = None
@@ -469,15 +485,21 @@ def apply_wavelets_rectangular(
         inputs_expand = tf.expand_dims(inputs_expand, axis=3)
         scalograms_list = []
         for j in range(n_scalograms):
-            with tf.name_scope('%s_%d' % (name, j)):
+            with tf.name_scope("%s_%d" % (name, j)):
                 bank_real, bank_imag = wavelets[j]  # n_scales filters each
                 bank_imag = -bank_imag  # Conjugation
                 out_real = tf.nn.conv2d(
-                    input=inputs_expand, filter=bank_real,
-                    strides=[1, 1, stride, 1], padding="SAME")
+                    input=inputs_expand,
+                    filter=bank_real,
+                    strides=[1, 1, stride, 1],
+                    padding="SAME",
+                )
                 out_imag = tf.nn.conv2d(
-                    input=inputs_expand, filter=bank_imag,
-                    strides=[1, 1, stride, 1], padding="SAME")
+                    input=inputs_expand,
+                    filter=bank_imag,
+                    strides=[1, 1, stride, 1],
+                    padding="SAME",
+                )
                 out_real_crop = out_real[:, :, start:end, :]
                 out_imag_crop = out_imag[:, :, start:end, :]
                 out_concat = tf.concat([out_real_crop, out_imag_crop], axis=1)
@@ -489,24 +511,13 @@ def apply_wavelets_rectangular(
     return scalograms
 
 
-def compute_sigma_band(
-        inputs,
-        fs,
-        ntaps=41,
-        central_freq=13,
-        border_crop=0,
-        stride=1):
+def compute_sigma_band(inputs, fs, ntaps=41, central_freq=13, border_crop=0, stride=1):
     kernel = get_kernel(ntaps, central_freq, fs)
-    sigma_inputs = apply_kernel(inputs, kernel, border_crop, stride, 'sigma')
+    sigma_inputs = apply_kernel(inputs, kernel, border_crop, stride, "sigma")
     return sigma_inputs
 
 
-def apply_kernel(
-        inputs,
-        kernel,
-        border_crop=0,
-        stride=1,
-        name=None):
+def apply_kernel(inputs, kernel, border_crop=0, stride=1, name=None):
 
     border_crop = int(border_crop / stride)
     start = border_crop
@@ -521,12 +532,15 @@ def apply_kernel(
         # Reshape input [batch, time_len] -> [batch, 1, time_len, 1]
         inputs_expand = tf.expand_dims(inputs, axis=1)
         inputs_expand = tf.expand_dims(inputs_expand, axis=3)
-        with tf.name_scope('filtering'):
+        with tf.name_scope("filtering"):
             # Reshape kernel [kernel_size] -> [1, kernel_size, 1, 1]
             kernel_expand = np.reshape(kernel, newshape=(1, -1, 1, 1))
             out_filter = tf.nn.conv2d(
-                input=inputs_expand, filter=kernel_expand,
-                strides=[1, 1, stride, 1], padding="SAME")
+                input=inputs_expand,
+                filter=kernel_expand,
+                strides=[1, 1, stride, 1],
+                padding="SAME",
+            )
             out_filter_crop = out_filter[:, :, start:end, :]
         # Remove extra dim
         outputs = tf.squeeze(out_filter_crop, axis=1, name="squeeze")

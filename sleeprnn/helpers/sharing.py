@@ -10,17 +10,19 @@ def split_mass(subject_ids, split_id, train_fraction=0.75, verbose=False):
     n_subjects = len(subject_ids)
     n_train = int(n_subjects * train_fraction)
     if verbose:
-        print('Split IDs: Total %d -- Training %d' % (n_subjects, n_train))
+        print("Split IDs: Total %d -- Training %d" % (n_subjects, n_train))
     n_val = n_subjects - n_train
     start_idx = split_id * n_val
     epoch = int(start_idx / n_subjects)
     attempts = 1
     while True:
         random_idx_1 = np.random.RandomState(seed=epoch).permutation(n_subjects)
-        random_idx_2 = np.random.RandomState(seed=epoch+attempts).permutation(n_subjects)
+        random_idx_2 = np.random.RandomState(seed=epoch + attempts).permutation(
+            n_subjects
+        )
         random_idx = np.concatenate([random_idx_1, random_idx_2])
         start_idx_relative = start_idx % n_subjects
-        val_idx = random_idx[start_idx_relative:(start_idx_relative + n_val)]
+        val_idx = random_idx[start_idx_relative : (start_idx_relative + n_val)]
         if np.unique(val_idx).size == n_val:
             break
         else:
@@ -48,29 +50,41 @@ def preprocess_mass_signals(signal, fs_original, fs_target=200):
 
     # Now resample to the required frequency
     if fs_target != fs_old_round:
-        print('Resampling from %d Hz to required %d Hz' % (fs_old_round, fs_target))
+        print("Resampling from %d Hz to required %d Hz" % (fs_old_round, fs_target))
         signal = resample_signal(signal, fs_old=fs_old_round, fs_new=fs_target)
     else:
-        print('Signal already at required %d Hz' % fs_target)
+        print("Signal already at required %d Hz" % fs_target)
 
     signal = signal.astype(np.float32)
     return signal
 
 
 def postprocess_mass_detections(
-        signal, fs, detections, is_kcomplex,
-        min_separation=0.3, min_duration=0.3, max_duration=3.0, repair_long=True
+    signal,
+    fs,
+    detections,
+    is_kcomplex,
+    min_separation=0.3,
+    min_duration=0.3,
+    max_duration=3.0,
+    repair_long=True,
 ):
     """detections is (n_detections, 2) array"""
     detections = combine_close_stamps(detections, fs, min_separation)
-    detections = filter_duration_stamps(detections, fs, min_duration, max_duration, repair_long=repair_long)
+    detections = filter_duration_stamps(
+        detections, fs, min_duration, max_duration, repair_long=repair_long
+    )
     if is_kcomplex:
         # For K-Complexes we perform the splitting procedure
-        detections = kcomplex_stamp_split(signal, detections, fs, signal_is_filtered=False)
+        detections = kcomplex_stamp_split(
+            signal, detections, fs, signal_is_filtered=False
+        )
     return detections
+
 
 # ###########################
 # From here, the functions used by the above ones are defined.
+
 
 def resample_signal(signal, fs_old, fs_new):
     """Returns resampled signal, from fs_old Hz to fs_new Hz."""
@@ -100,7 +114,7 @@ def broad_filter(signal, fs, lowcut=0.1, highcut=35):
     nyq = 0.5 * fs
     low = lowcut / nyq
     high = highcut / nyq
-    b, a = butter(3, (low, high), btype='band')
+    b, a = butter(3, (low, high), btype="band")
     # Apply filter to the signal with zero-phase.
     filtered_signal = filtfilt(b, a, signal)
     return filtered_signal
@@ -161,7 +175,7 @@ def filter_duration_stamps(marks, fs, min_duration, max_duration, repair_long=Tr
 
             if repair_long:
                 # Remove weird annotations (extremely long)
-                feasible_idx = np.where(durations <= 2*max_duration)[0]
+                feasible_idx = np.where(durations <= 2 * max_duration)[0]
                 marks = marks[feasible_idx, :]
                 durations = durations[feasible_idx]
 
@@ -180,13 +194,13 @@ def filter_duration_stamps(marks, fs, min_duration, max_duration, repair_long=Tr
 
 
 def kcomplex_stamp_split(
-        signal,
-        stamps,
-        fs,
-        highcut=4,
-        left_edge_tol=0.05,
-        right_edge_tol=0.2,
-        signal_is_filtered=False
+    signal,
+    stamps,
+    fs,
+    highcut=4,
+    left_edge_tol=0.05,
+    right_edge_tol=0.2,
+    signal_is_filtered=False,
 ):
     left_edge_tol = fs * left_edge_tol
     right_edge_tol = fs * right_edge_tol
@@ -199,16 +213,16 @@ def kcomplex_stamp_split(
     new_stamps = []
     for stamp in stamps:
         stamp_size = stamp[1] - stamp[0] + 1
-        filt_in_stamp = filt_signal[stamp[0]:stamp[1]]
-        negative_peaks, _ = find_peaks(- filt_in_stamp)
+        filt_in_stamp = filt_signal[stamp[0] : stamp[1]]
+        negative_peaks, _ = find_peaks(-filt_in_stamp)
         # peaks needs to be negative
-        negative_peaks = [
-            peak for peak in negative_peaks
-            if filt_in_stamp[peak] < 0]
+        negative_peaks = [peak for peak in negative_peaks if filt_in_stamp[peak] < 0]
 
         negative_peaks = [
-            peak for peak in negative_peaks
-            if left_edge_tol < peak < stamp_size - right_edge_tol]
+            peak
+            for peak in negative_peaks
+            if left_edge_tol < peak < stamp_size - right_edge_tol
+        ]
 
         n_peaks = len(negative_peaks)
         if n_peaks > 1:
@@ -237,13 +251,13 @@ def kcomplex_stamp_split(
         if n_peaks > 1:
             # Split marks
             edges_list = [stamp[0]]
-            for i in range(n_peaks-1):
-                split_point_rel = (negative_peaks[i] + negative_peaks[i+1]) / 2
+            for i in range(n_peaks - 1):
+                split_point_rel = (negative_peaks[i] + negative_peaks[i + 1]) / 2
                 split_point_abs = int(stamp[0] + split_point_rel)
                 edges_list.append(split_point_abs)
             edges_list.append(stamp[1])
-            for i in range(len(edges_list)-1):
-                new_stamps.append([edges_list[i], edges_list[i+1]])
+            for i in range(len(edges_list) - 1):
+                new_stamps.append([edges_list[i], edges_list[i + 1]])
         else:
             new_stamps.append(stamp)
     if len(new_stamps) > 0:
@@ -259,7 +273,7 @@ def filter_iir_lowpass(signal, fs, highcut=4):
     # Generate butter bandpass of order 3.
     nyq = 0.5 * fs
     high = highcut / nyq
-    b, a = butter(3, high, btype='low')
+    b, a = butter(3, high, btype="low")
     # Apply filter to the signal with zero-phase.
     filtered_signal = filtfilt(b, a, signal)
     return filtered_signal

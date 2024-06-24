@@ -18,8 +18,8 @@ class PostProcessor(object):
 
     def __init__(self, event_name, params=None):
         checks.check_valid_value(
-            event_name, 'event_name',
-            [constants.SPINDLE, constants.KCOMPLEX])
+            event_name, "event_name", [constants.SPINDLE, constants.KCOMPLEX]
+        )
 
         self.event_name = event_name
         self.params = pkeys.default_params.copy()
@@ -27,11 +27,8 @@ class PostProcessor(object):
             self.params.update(params)
 
     def proba2stamps(
-            self,
-            proba_data,
-            pages_indices=None,
-            pages_indices_subset=None,
-            thr=0.5):
+        self, proba_data, pages_indices=None, pages_indices_subset=None, thr=0.5
+    ):
         """
         If thr is None, pages_sequence is assumed to be already binarized.
         fs_input corresponds to sampling frequency of pages_sequence,
@@ -60,7 +57,9 @@ class PostProcessor(object):
 
         # Only keep candidates that surpassed high threshold (for detection)
         # i.e., only stamps_low intersecting with stamps_high
-        overlap_check = get_overlap_matrix(stamps_low, stamps_high)  # shape (n_low, n_high)
+        overlap_check = get_overlap_matrix(
+            stamps_low, stamps_high
+        )  # shape (n_low, n_high)
         if overlap_check.sum() == 0:
             stamps = np.zeros((0, 2), dtype=np.int32)
         else:
@@ -91,27 +90,29 @@ class PostProcessor(object):
             repair_long = self.params[pkeys.REPAIR_LONG_DETECTIONS]
 
         stamps = combine_close_stamps(stamps, fs_input, min_separation)
-        stamps = filter_duration_stamps(stamps, fs_input, min_duration, max_duration, repair_long=repair_long)
+        stamps = filter_duration_stamps(
+            stamps, fs_input, min_duration, max_duration, repair_long=repair_long
+        )
 
         # Upsampling
         if fs_output > fs_input:
             stamps = self._upsample_stamps(stamps)
         elif fs_output < fs_input:
-            raise ValueError('fs_output has to be greater than fs_input')
+            raise ValueError("fs_output has to be greater than fs_input")
 
         if pages_indices_subset is not None:
             page_size = int(self.params[pkeys.PAGE_DURATION] * fs_output)
-            stamps = extract_pages_for_stamps(
-                stamps, pages_indices_subset, page_size)
+            stamps = extract_pages_for_stamps(stamps, pages_indices_subset, page_size)
 
         return stamps
 
     def proba2stamps_with_list(
-            self,
-            pages_sequence_list,
-            pages_indices_list=None,
-            pages_indices_subset_list=None,
-            thr=0.5):
+        self,
+        pages_sequence_list,
+        pages_indices_list=None,
+        pages_indices_subset_list=None,
+        thr=0.5,
+    ):
 
         if pages_indices_list is None:
             pages_indices_list = [None] * len(pages_sequence_list)
@@ -123,22 +124,17 @@ class PostProcessor(object):
                 pages_sequence,
                 pages_indices,
                 pages_indices_subset=pages_indices_subset,
-                thr=thr)
-            for (
-                pages_sequence,
-                pages_indices,
-                pages_indices_subset)
-            in zip(
-                pages_sequence_list,
-                pages_indices_list,
-                pages_indices_subset_list)
+                thr=thr,
+            )
+            for (pages_sequence, pages_indices, pages_indices_subset) in zip(
+                pages_sequence_list, pages_indices_list, pages_indices_subset_list
+            )
         )
 
         return stamps_list
 
     def _upsample_stamps(self, stamps):
-        """Upsamples timestamps of stamps to match a greater sampling frequency.
-        """
+        """Upsamples timestamps of stamps to match a greater sampling frequency."""
         upsample_factor = self.params[pkeys.TOTAL_DOWNSAMPLING_FACTOR]
         if pkeys.ALIGNED_DOWNSAMPLING not in self.params:
             aligned_down = False

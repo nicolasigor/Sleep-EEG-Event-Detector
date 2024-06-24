@@ -33,7 +33,7 @@ def by_sample_confusion(events, detections, input_is_binary=False):
         constants.FN: fn,
         constants.PRECISION: precision,
         constants.RECALL: recall,
-        constants.F1_SCORE: f1_score
+        constants.F1_SCORE: f1_score,
     }
     return by_sample_metrics
 
@@ -102,7 +102,7 @@ def by_event_confusion(events, detections, iou_thr=0.3, iou_matching=None):
         constants.RECALL: recall,
         constants.F1_SCORE: f1_score,
         constants.MEAN_ALL_IOU: mean_all_iou,
-        constants.MEAN_NONZERO_IOU: mean_nonzero_iou
+        constants.MEAN_NONZERO_IOU: mean_nonzero_iou,
     }
     return by_event_metrics
 
@@ -125,20 +125,20 @@ def matching(events, detections):
     overlaps = np.zeros((n_gs, n_det))
     for i in range(n_gs):
         candidates = np.where(
-            (detections[:, 0] <= events[i, 1])
-            & (detections[:, 1] >= events[i, 0]))[0]
+            (detections[:, 0] <= events[i, 1]) & (detections[:, 1] >= events[i, 0])
+        )[0]
         for j in candidates:
-            intersection = min(
-                events[i, 1], detections[j, 1]
-            ) - max(
-                events[i, 0], detections[j, 0]
-            ) + 1
+            intersection = (
+                min(events[i, 1], detections[j, 1])
+                - max(events[i, 0], detections[j, 0])
+                + 1
+            )
             if intersection > 0:
-                union = max(
-                    events[i, 1], detections[j, 1]
-                ) - min(
-                    events[i, 0], detections[j, 0]
-                ) + 1
+                union = (
+                    max(events[i, 1], detections[j, 1])
+                    - min(events[i, 0], detections[j, 0])
+                    + 1
+                )
                 overlaps[i, j] = intersection / union
     # Greedy matching
     iou_matching = []  # Array for IoU for every true event (gs)
@@ -170,12 +170,7 @@ def matching_with_list(events_list, detections_list):
     return iou_matching_list, idx_matching_list
 
 
-def confusion_vs_iou(
-        events,
-        detections,
-        iou_thr_list,
-        iou_matching=None
-):
+def confusion_vs_iou(events, detections, iou_thr_list, iou_matching=None):
     if iou_matching is None:
         iou_matching, _ = matching(events, detections)
     n_events = events.shape[0]
@@ -193,25 +188,23 @@ def confusion_vs_iou(
         fp_vs_iou = n_thrs * [n_detections]
         fn_vs_iou = n_thrs * [n_events]
     metrics = {
-        'tp_vs_iou': tp_vs_iou,
-        'fp_vs_iou': fp_vs_iou,
-        'fn_vs_iou': fn_vs_iou,
+        "tp_vs_iou": tp_vs_iou,
+        "fp_vs_iou": fp_vs_iou,
+        "fn_vs_iou": fn_vs_iou,
     }
     return metrics
 
 
 def confusion_vs_iou_with_list(
-        events_list,
-        detections_list,
-        iou_thr_list,
-        iou_matching_list=None
+    events_list, detections_list, iou_thr_list, iou_matching_list=None
 ):
     if iou_matching_list is None:
         iou_matching_list = [None] * len(events_list)
     outputs_list = [
         confusion_vs_iou(events, detections, iou_thr_list, iou_matching)
-        for (events, detections, iou_matching)
-        in zip(events_list, detections_list, iou_matching_list)
+        for (events, detections, iou_matching) in zip(
+            events_list, detections_list, iou_matching_list
+        )
     ]
     metrics = {}
     for key in outputs_list[0].keys():
@@ -220,21 +213,27 @@ def confusion_vs_iou_with_list(
 
 
 def metric_vs_iou_micro_average(
-        events_list,
-        detections_list,
-        iou_thr_list,
-        metric_name=constants.F1_SCORE,
-        iou_matching_list=None
+    events_list,
+    detections_list,
+    iou_thr_list,
+    metric_name=constants.F1_SCORE,
+    iou_matching_list=None,
 ):
     """Aggregates TP, FP and FN from all subjects and then computes a single metric."""
-    metrics = confusion_vs_iou_with_list(events_list, detections_list, iou_thr_list, iou_matching_list)
-    tp_vs_iou = metrics['tp_vs_iou'].sum(axis=0)
+    metrics = confusion_vs_iou_with_list(
+        events_list, detections_list, iou_thr_list, iou_matching_list
+    )
+    tp_vs_iou = metrics["tp_vs_iou"].sum(axis=0)
     edge_case = np.array([1.0] * len(tp_vs_iou))
     n_events = np.sum([e.shape[0] for e in events_list])
     n_detections = np.sum([d.shape[0] for d in detections_list])
     recall_vs_iou = edge_case if n_events == 0 else (tp_vs_iou / n_events)
     precision_vs_iou = edge_case if n_detections == 0 else (tp_vs_iou / n_detections)
-    f1_score_vs_iou = edge_case if (n_events + n_detections) == 0 else (2 * tp_vs_iou / (n_events + n_detections))
+    f1_score_vs_iou = (
+        edge_case
+        if (n_events + n_detections) == 0
+        else (2 * tp_vs_iou / (n_events + n_detections))
+    )
     if metric_name == constants.RECALL:
         chosen_vs_iou = recall_vs_iou
     elif metric_name == constants.PRECISION:
@@ -247,25 +246,23 @@ def metric_vs_iou_micro_average(
 
 
 def metric_vs_iou_macro_average(
-        events_list,
-        detections_list,
-        iou_thr_list,
-        metric_name=constants.F1_SCORE,
-        iou_matching_list=None,
-        collapse_values=True
+    events_list,
+    detections_list,
+    iou_thr_list,
+    metric_name=constants.F1_SCORE,
+    iou_matching_list=None,
+    collapse_values=True,
 ):
-    """ Computes metric independently for each subject and then combines them."""
+    """Computes metric independently for each subject and then combines them."""
     if iou_matching_list is None:
         iou_matching_list = [None] * len(events_list)
     chosen_vs_iou_list = [
         metric_vs_iou_micro_average(
-            [events],
-            [detections],
-            iou_thr_list,
-            metric_name,
-            [iou_matching])
-        for (events, detections, iou_matching)
-        in zip(events_list, detections_list, iou_matching_list)
+            [events], [detections], iou_thr_list, metric_name, [iou_matching]
+        )
+        for (events, detections, iou_matching) in zip(
+            events_list, detections_list, iou_matching_list
+        )
     ]
     chosen_vs_iou_list = np.stack(chosen_vs_iou_list, axis=0)
     if collapse_values:
@@ -275,10 +272,7 @@ def metric_vs_iou_macro_average(
 
 
 def average_metric_micro_average(
-        events_list,
-        detections_list,
-        metric_name=constants.F1_SCORE,
-        iou_matching_list=None
+    events_list, detections_list, metric_name=constants.F1_SCORE, iou_matching_list=None
 ):
     # Go through several IoU values
     first_iou = 0
@@ -287,7 +281,8 @@ def average_metric_micro_average(
     n_points = int(np.round((last_iou - first_iou) / res_iou))
     full_iou_list = np.arange(n_points + 1) * res_iou + first_iou
     chosen_vs_iou = metric_vs_iou_micro_average(
-        events_list, detections_list, full_iou_list, metric_name, iou_matching_list)
+        events_list, detections_list, full_iou_list, metric_name, iou_matching_list
+    )
     # To compute the area under the curve, we'll use trapezoidal approximation
     # So we need to divide by 2 the extremes
     chosen_vs_iou[0] = chosen_vs_iou[0] / 2
@@ -298,11 +293,11 @@ def average_metric_micro_average(
 
 
 def average_metric_macro_average(
-        events_list,
-        detections_list,
-        metric_name=constants.F1_SCORE,
-        iou_matching_list=None,
-        collapse_values=True
+    events_list,
+    detections_list,
+    metric_name=constants.F1_SCORE,
+    iou_matching_list=None,
+    collapse_values=True,
 ):
     # Go through several IoU values
     first_iou = 0
@@ -311,8 +306,13 @@ def average_metric_macro_average(
     n_points = int(np.round((last_iou - first_iou) / res_iou))
     full_iou_list = np.arange(n_points + 1) * res_iou + first_iou
     chosen_vs_iou = metric_vs_iou_macro_average(
-        events_list, detections_list, full_iou_list, metric_name, iou_matching_list,
-        collapse_values=collapse_values)
+        events_list,
+        detections_list,
+        full_iou_list,
+        metric_name,
+        iou_matching_list,
+        collapse_values=collapse_values,
+    )
     # To compute the area under the curve, we'll use trapezoidal approximation
     # So we need to divide by 2 the extremes
     chosen_vs_iou[..., 0] = chosen_vs_iou[..., 0] / 2
@@ -323,69 +323,66 @@ def average_metric_macro_average(
 
 
 def metric_vs_iou(
-        events,
-        detections,
-        iou_thr_list,
-        metric_name=constants.F1_SCORE,
-        iou_matching=None,
-        verbose=False
+    events,
+    detections,
+    iou_thr_list,
+    metric_name=constants.F1_SCORE,
+    iou_matching=None,
+    verbose=False,
 ):
     metric_list = []
     if verbose:
-        print('Matching events... ', end='', flush=True)
+        print("Matching events... ", end="", flush=True)
     if iou_matching is None:
         iou_matching, _ = matching(events, detections)
     if verbose:
-        print('Done', flush=True)
+        print("Done", flush=True)
     for iou_thr in iou_thr_list:
         if verbose:
-            print(
-                'Processing IoU threshold %1.4f... ' % iou_thr,
-                end='', flush=True)
+            print("Processing IoU threshold %1.4f... " % iou_thr, end="", flush=True)
         this_stat = by_event_confusion(
-            events, detections,
-            iou_thr=iou_thr, iou_matching=iou_matching)
+            events, detections, iou_thr=iou_thr, iou_matching=iou_matching
+        )
         metric = this_stat[metric_name]
         metric_list.append(metric)
         if verbose:
-            print('%s obtained: %1.4f' % (metric_name, metric), flush=True)
+            print("%s obtained: %1.4f" % (metric_name, metric), flush=True)
     if verbose:
-        print('Done')
+        print("Done")
     metric_list = np.array(metric_list)
     return metric_list
 
 
 def metric_vs_iou_with_list(
-        events_list,
-        detections_list,
-        iou_thr_list,
-        metric_name=constants.F1_SCORE,
-        iou_matching_list=None,
-        verbose=False
+    events_list,
+    detections_list,
+    iou_thr_list,
+    metric_name=constants.F1_SCORE,
+    iou_matching_list=None,
+    verbose=False,
 ):
     if iou_matching_list is None:
         iou_matching_list = [None] * len(events_list)
 
     all_metric_list = [
         metric_vs_iou(
-            events, detections, iou_thr_list,
+            events,
+            detections,
+            iou_thr_list,
             metric_name=metric_name,
             verbose=verbose,
-            iou_matching=iou_matching
+            iou_matching=iou_matching,
         )
-        for (events, detections, iou_matching)
-        in zip(events_list, detections_list, iou_matching_list)
+        for (events, detections, iou_matching) in zip(
+            events_list, detections_list, iou_matching_list
+        )
     ]
     all_metric_curve = np.stack(all_metric_list, axis=1).mean(axis=1)
     return all_metric_curve
 
 
 def average_metric(
-        events,
-        detections,
-        metric_name=constants.F1_SCORE,
-        iou_matching=None,
-        verbose=False
+    events, detections, metric_name=constants.F1_SCORE, iou_matching=None, verbose=False
 ):
     """Average F1 over several IoU values.
 
@@ -399,13 +396,20 @@ def average_metric(
     n_points = int(np.round((last_iou - first_iou) / res_iou))
     full_iou_list = np.arange(n_points + 1) * res_iou + first_iou
     if verbose:
-        print('Using %d IoU thresholds from %1.1f to %1.1f'
-              % (n_points + 1, first_iou, last_iou))
-        print('Computing %s values' % metric_name, flush=True)
+        print(
+            "Using %d IoU thresholds from %1.1f to %1.1f"
+            % (n_points + 1, first_iou, last_iou)
+        )
+        print("Computing %s values" % metric_name, flush=True)
 
     metric_list = metric_vs_iou(
-        events, detections, full_iou_list,
-        metric_name=metric_name, iou_matching=iou_matching, verbose=verbose)
+        events,
+        detections,
+        full_iou_list,
+        metric_name=metric_name,
+        iou_matching=iou_matching,
+        verbose=verbose,
+    )
 
     # To compute the area under the curve, we'll use trapezoidal aproximation
     # So we need to divide by two the extremes
@@ -414,44 +418,46 @@ def average_metric(
     # And now we compute the AUC
     avg_metric = np.sum(metric_list * res_iou)
     if verbose:
-        print('Done')
+        print("Done")
     return avg_metric
 
 
 def average_metric_with_list(
-        events_list,
-        detections_list,
-        metric_name=constants.F1_SCORE,
-        iou_matching_list=None,
-        verbose=False
+    events_list,
+    detections_list,
+    metric_name=constants.F1_SCORE,
+    iou_matching_list=None,
+    verbose=False,
 ):
     if iou_matching_list is None:
         iou_matching_list = [None] * len(events_list)
     all_avg_list = [
         average_metric(
-            events, detections,
+            events,
+            detections,
             metric_name=metric_name,
             verbose=verbose,
-            iou_matching=iou_matching
+            iou_matching=iou_matching,
         )
-        for (events, detections, iou_matching)
-        in zip(events_list, detections_list, iou_matching_list)
+        for (events, detections, iou_matching) in zip(
+            events_list, detections_list, iou_matching_list
+        )
     ]
     all_avg = np.mean(all_avg_list)
     return all_avg
 
 
 def get_iou(single_event_1, single_event_2):
-    intersection = min(
-        single_event_1[1], single_event_2[1]
-    ) - max(
-        single_event_1[0], single_event_2[0]
-    ) + 1
-    union = max(
-        single_event_1[1], single_event_2[1]
-    ) - min(
-        single_event_1[0], single_event_2[0]
-    ) + 1
+    intersection = (
+        min(single_event_1[1], single_event_2[1])
+        - max(single_event_1[0], single_event_2[0])
+        + 1
+    )
+    union = (
+        max(single_event_1[1], single_event_2[1])
+        - min(single_event_1[0], single_event_2[0])
+        + 1
+    )
     if union > 0:
         this_iou = intersection / union
     else:

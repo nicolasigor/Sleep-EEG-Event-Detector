@@ -12,21 +12,21 @@ prefetch_buffer_size: (int) Size of the buffer to prefetch the batches. If 0,
     no prefetch is applied.
 page_duration: (int) Size of a EEG page in seconds.
 """
-CLIP_VALUE = 'clip_value'
-NORM_COMPUTATION_MODE = 'norm_computation_mode'
-BATCH_SIZE = 'batch_size'
-SHUFFLE_BUFFER_SIZE = 'shuffle_buffer_size'
-PREFETCH_BUFFER_SIZE = 'prefetch_buffer_size'
-PAGE_DURATION = 'page_duration'
-AUG_RESCALE_NORMAL_PROBA = 'aug_rescale_normal_proba'
-AUG_RESCALE_NORMAL_STD = 'aug_rescale_normal_std'
-AUG_GAUSSIAN_NOISE_PROBA = 'aug_gaussian_noise_proba'
-AUG_GAUSSIAN_NOISE_STD = 'aug_gaussian_noise_std'
-AUG_RESCALE_UNIFORM_PROBA = 'aug_rescale_uniform_proba'
-AUG_RESCALE_UNIFORM_INTENSITY = 'aug_rescale_uniform_intensity'
-AUG_ELASTIC_PROBA = 'aug_elastic_proba'
-AUG_ELASTIC_ALPHA = 'aug_elastic_alpha'
-AUG_ELASTIC_SIGMA = 'aug_elastic_sigma'
+CLIP_VALUE = "clip_value"
+NORM_COMPUTATION_MODE = "norm_computation_mode"
+BATCH_SIZE = "batch_size"
+SHUFFLE_BUFFER_SIZE = "shuffle_buffer_size"
+PREFETCH_BUFFER_SIZE = "prefetch_buffer_size"
+PAGE_DURATION = "page_duration"
+AUG_RESCALE_NORMAL_PROBA = "aug_rescale_normal_proba"
+AUG_RESCALE_NORMAL_STD = "aug_rescale_normal_std"
+AUG_GAUSSIAN_NOISE_PROBA = "aug_gaussian_noise_proba"
+AUG_GAUSSIAN_NOISE_STD = "aug_gaussian_noise_std"
+AUG_RESCALE_UNIFORM_PROBA = "aug_rescale_uniform_proba"
+AUG_RESCALE_UNIFORM_INTENSITY = "aug_rescale_uniform_intensity"
+AUG_ELASTIC_PROBA = "aug_elastic_proba"
+AUG_ELASTIC_ALPHA = "aug_elastic_alpha"
+AUG_ELASTIC_SIGMA = "aug_elastic_sigma"
 
 AUG_INDEP_GAUSSIAN_NOISE_PROBA = "aug_indep_gaussian_noise_proba"
 AUG_INDEP_GAUSSIAN_NOISE_STD = "aug_indep_gaussian_noise_std"
@@ -112,86 +112,86 @@ initial_lstm_units: (int) Number of units for lstm layers. If multi stage
     the number of units is doubled.
 """
 # General parameters
-FS = 'fs'
-MODEL_VERSION = 'model_version'
-BORDER_DURATION = 'border_duration'
+FS = "fs"
+MODEL_VERSION = "model_version"
+BORDER_DURATION = "border_duration"
 # Regularization
-TYPE_BATCHNORM = 'batchnorm'
-TYPE_DROPOUT = 'dropout'
-DROP_RATE_BEFORE_LSTM = 'drop_rate_before_lstm'
-DROP_RATE_HIDDEN = 'drop_rate_hidden'
-DROP_RATE_OUTPUT = 'drop_rate_output'
+TYPE_BATCHNORM = "batchnorm"
+TYPE_DROPOUT = "dropout"
+DROP_RATE_BEFORE_LSTM = "drop_rate_before_lstm"
+DROP_RATE_HIDDEN = "drop_rate_hidden"
+DROP_RATE_OUTPUT = "drop_rate_output"
 # CWT stage
-FB_LIST = 'fb_list'
-TRAINABLE_WAVELET = 'trainable_wavelet'
-WAVELET_SIZE_FACTOR = 'wavelet_size_factor'
-USE_LOG = 'use_log'
-N_SCALES = 'n_scales'
-LOWER_FREQ = 'lower_freq'
-UPPER_FREQ = 'upper_freq'
-USE_RELU = 'use_relu'
+FB_LIST = "fb_list"
+TRAINABLE_WAVELET = "trainable_wavelet"
+WAVELET_SIZE_FACTOR = "wavelet_size_factor"
+USE_LOG = "use_log"
+N_SCALES = "n_scales"
+LOWER_FREQ = "lower_freq"
+UPPER_FREQ = "upper_freq"
+USE_RELU = "use_relu"
 CWT_NOISE_INTENSITY = "cwt_noise_intensity"
 # Convolutional stage
-INITIAL_KERNEL_SIZE = 'initial_kernel_size'
-INITIAL_CONV_FILTERS = 'initial_conv_filters'
-CONV_DOWNSAMPLING = 'conv_downsampling'
+INITIAL_KERNEL_SIZE = "initial_kernel_size"
+INITIAL_CONV_FILTERS = "initial_conv_filters"
+CONV_DOWNSAMPLING = "conv_downsampling"
 # blstm stage
-INITIAL_LSTM_UNITS = 'initial_lstm_units'
+INITIAL_LSTM_UNITS = "initial_lstm_units"
 # FC units in second to last layer
-FC_UNITS = 'fc_units'
-OUTPUT_LSTM_UNITS = 'output_lstm_units'
+FC_UNITS = "fc_units"
+OUTPUT_LSTM_UNITS = "output_lstm_units"
 # Time-domain convolutional params
-TIME_CONV_FILTERS_1 = 'time_conv_filters_1'
-TIME_CONV_FILTERS_2 = 'time_conv_filters_2'
-TIME_CONV_FILTERS_3 = 'time_conv_filters_3'
-SIGMA_FILTER_NTAPS = 'sigma_filter_ntaps'
+TIME_CONV_FILTERS_1 = "time_conv_filters_1"
+TIME_CONV_FILTERS_2 = "time_conv_filters_2"
+TIME_CONV_FILTERS_3 = "time_conv_filters_3"
+SIGMA_FILTER_NTAPS = "sigma_filter_ntaps"
 # cwt domain convolutional params
-CWT_CONV_FILTERS_1 = 'cwt_conv_filters_1'
-CWT_CONV_FILTERS_2 = 'cwt_conv_filters_2'
-CWT_CONV_FILTERS_3 = 'cwt_conv_filters_3'
+CWT_CONV_FILTERS_1 = "cwt_conv_filters_1"
+CWT_CONV_FILTERS_2 = "cwt_conv_filters_2"
+CWT_CONV_FILTERS_3 = "cwt_conv_filters_3"
 # General cwt
-CWT_RETURN_REAL_PART = 'cwt_return_real_part'
-CWT_RETURN_IMAG_PART = 'cwt_return_imag_part'
-CWT_RETURN_MAGNITUDE = 'cwt_return_magnitude'
-CWT_RETURN_PHASE = 'cwt_return_phase'
-INIT_POSITIVE_PROBA = 'init_positive_proba'
+CWT_RETURN_REAL_PART = "cwt_return_real_part"
+CWT_RETURN_IMAG_PART = "cwt_return_imag_part"
+CWT_RETURN_MAGNITUDE = "cwt_return_magnitude"
+CWT_RETURN_PHASE = "cwt_return_phase"
+INIT_POSITIVE_PROBA = "init_positive_proba"
 # Upconv output
-LAST_OUTPUT_CONV_FILTERS = 'last_output_conv_filters'
+LAST_OUTPUT_CONV_FILTERS = "last_output_conv_filters"
 # UNET parameters
-UNET_TIME_INITIAL_CONV_FILTERS = 'unet_time_initial_conv_filters'
-UNET_TIME_LSTM_UNITS = 'unet_time_lstm_units'
-UNET_TIME_N_DOWN = 'unet_time_n_down'
-UNET_TIME_N_CONV_DOWN = 'unet_time_n_conv_down'
-UNET_TIME_N_CONV_UP = 'unet_time_n_conv_up'
+UNET_TIME_INITIAL_CONV_FILTERS = "unet_time_initial_conv_filters"
+UNET_TIME_LSTM_UNITS = "unet_time_lstm_units"
+UNET_TIME_N_DOWN = "unet_time_n_down"
+UNET_TIME_N_CONV_DOWN = "unet_time_n_conv_down"
+UNET_TIME_N_CONV_UP = "unet_time_n_conv_up"
 # Attention parameters
-ATT_DIM = 'att_dim'
-ATT_N_HEADS = 'att_n_heads'
-ATT_PE_FACTOR = 'att_pe_factor'
-ATT_DROP_RATE = 'att_drop_rate'
-ATT_LSTM_DIM = 'att_lstm_dim'
-ATT_PE_CONCAT_DIM = 'att_pe_concat_dim'
-ABLATION_TYPE_BATCHNORM_INPUT = 'ablation_type_batchnorm_input'
-ABLATION_TYPE_BATCHNORM_CONV = 'ablation_type_batchnorm_conv'
-ABLATION_DROP_RATE = 'ablation_drop_rate'
-OUTPUT_RESIDUAL_FC_SIZE = 'output_residual_fc_size'
-OUTPUT_USE_BN = 'output_use_bn'
-OUTPUT_USE_DROP = 'output_use_drop'
-FC_UNITS_1 = 'fc_units_1'
-FC_UNITS_2 = 'fc_units_2'
-SHIELD_LSTM_DOWN_FACTOR = 'shield_lstm_down_factor'
-SHIELD_LSTM_TYPE_POOL = 'shield_lstm_type_pool'
-PR_RETURN_RATIOS = 'pr_return_ratios'
-PR_RETURN_BANDS = 'pr_return_bands'
-LLC_STFT_N_SAMPLES = 'llc_stft_n_samples'
-LLC_STFT_FREQ_POOL = 'llc_stft_freq_pool'
-LLC_STFT_USE_LOG = 'llc_stft_use_log'
-LLC_STFT_N_HIDDEN = 'llc_stft_n_hidden'
-LLC_STFT_DROP_RATE = 'llc_stft_drop_rate'
+ATT_DIM = "att_dim"
+ATT_N_HEADS = "att_n_heads"
+ATT_PE_FACTOR = "att_pe_factor"
+ATT_DROP_RATE = "att_drop_rate"
+ATT_LSTM_DIM = "att_lstm_dim"
+ATT_PE_CONCAT_DIM = "att_pe_concat_dim"
+ABLATION_TYPE_BATCHNORM_INPUT = "ablation_type_batchnorm_input"
+ABLATION_TYPE_BATCHNORM_CONV = "ablation_type_batchnorm_conv"
+ABLATION_DROP_RATE = "ablation_drop_rate"
+OUTPUT_RESIDUAL_FC_SIZE = "output_residual_fc_size"
+OUTPUT_USE_BN = "output_use_bn"
+OUTPUT_USE_DROP = "output_use_drop"
+FC_UNITS_1 = "fc_units_1"
+FC_UNITS_2 = "fc_units_2"
+SHIELD_LSTM_DOWN_FACTOR = "shield_lstm_down_factor"
+SHIELD_LSTM_TYPE_POOL = "shield_lstm_type_pool"
+PR_RETURN_RATIOS = "pr_return_ratios"
+PR_RETURN_BANDS = "pr_return_bands"
+LLC_STFT_N_SAMPLES = "llc_stft_n_samples"
+LLC_STFT_FREQ_POOL = "llc_stft_freq_pool"
+LLC_STFT_USE_LOG = "llc_stft_use_log"
+LLC_STFT_N_HIDDEN = "llc_stft_n_hidden"
+LLC_STFT_DROP_RATE = "llc_stft_drop_rate"
 TCN_FILTERS = "tcn_filters"
 TCN_KERNEL_SIZE = "tcn_kernel_size"
 TCN_DROP_RATE = "tcn_drop_rate"
 TCN_N_BLOCKS = "tcn_n_blocks"
-TCN_USE_BOTTLENECK = 'tcn_use_bottleneck'
+TCN_USE_BOTTLENECK = "tcn_use_bottleneck"
 TCN_LAST_CONV_N_LAYERS = "tcn_last_conv_n_layers"
 TCN_LAST_CONV_FILTERS = "tcn_last_conv_filters"
 TCN_LAST_CONV_KERNEL_SIZE = "tcn_last_conv_kernel_size"
@@ -221,88 +221,92 @@ BP_INPUT_LOWCUT = "bp_input_lowcut"
 BP_INPUT_HIGHCUT = "bp_input_highcut"
 # Multi-kernel 1d conv params
 TIME_CONV_MK_PROJECT_FIRST = "time_conv_mk_project_first"
-TIME_CONV_MK_FILTERS_1 = 'time_conv_mk_filters_1'  # [(k1, f1), (k2, f2), ...]
-TIME_CONV_MK_FILTERS_2 = 'time_conv_mk_filters_2'
-TIME_CONV_MK_FILTERS_3 = 'time_conv_mk_filters_3'
-TIME_CONV_MK_DROP_RATE = 'time_conv_mk_drop_rate'
-TIME_CONV_MK_SKIPS = 'time_conv_mk_skips'
-TIME_CONV_MKD_FILTERS_1 = 'time_conv_mkd_filters_1'  # [(k1, f1, d1), (k2, f2, d2), ...]
-TIME_CONV_MKD_FILTERS_2 = 'time_conv_mkd_filters_2'
-TIME_CONV_MKD_FILTERS_3 = 'time_conv_mkd_filters_3'
+TIME_CONV_MK_FILTERS_1 = "time_conv_mk_filters_1"  # [(k1, f1), (k2, f2), ...]
+TIME_CONV_MK_FILTERS_2 = "time_conv_mk_filters_2"
+TIME_CONV_MK_FILTERS_3 = "time_conv_mk_filters_3"
+TIME_CONV_MK_DROP_RATE = "time_conv_mk_drop_rate"
+TIME_CONV_MK_SKIPS = "time_conv_mk_skips"
+TIME_CONV_MKD_FILTERS_1 = "time_conv_mkd_filters_1"  # [(k1, f1, d1), (k2, f2, d2), ...]
+TIME_CONV_MKD_FILTERS_2 = "time_conv_mkd_filters_2"
+TIME_CONV_MKD_FILTERS_3 = "time_conv_mkd_filters_3"
 # Stat network parameters
 # -- Backbone parameters
-STAT_NET_CONV_KERNEL_SIZE = 'stat_net_conv_kernel_size'
-STAT_NET_CONV_DEPTH = 'stat_net_conv_depth'
-STAT_NET_CONV_TYPE_POOL = 'stat_net_conv_type_pool'
-STAT_NET_CONV_INITIAL_FILTERS = 'stat_net_conv_initial_filters'
-STAT_NET_CONV_MAX_FILTERS = 'stat_net_conv_max_filters'
-STAT_NET_LSTM_UNITS = 'stat_net_lstm_units'
+STAT_NET_CONV_KERNEL_SIZE = "stat_net_conv_kernel_size"
+STAT_NET_CONV_DEPTH = "stat_net_conv_depth"
+STAT_NET_CONV_TYPE_POOL = "stat_net_conv_type_pool"
+STAT_NET_CONV_INITIAL_FILTERS = "stat_net_conv_initial_filters"
+STAT_NET_CONV_MAX_FILTERS = "stat_net_conv_max_filters"
+STAT_NET_LSTM_UNITS = "stat_net_lstm_units"
 # -- General config
-STAT_NET_TYPE_BACKBONE = 'stat_net_type_backbone'
-STAT_NET_TYPE_COLLAPSE = 'stat_net_type_collapse'
-STAT_NET_CONTEXT_DROP_RATE = 'stat_net_context_drop_rate'
-STAT_NET_CONTEXT_DIM = 'stat_net_context_dim'
+STAT_NET_TYPE_BACKBONE = "stat_net_type_backbone"
+STAT_NET_TYPE_COLLAPSE = "stat_net_type_collapse"
+STAT_NET_CONTEXT_DROP_RATE = "stat_net_context_drop_rate"
+STAT_NET_CONTEXT_DIM = "stat_net_context_dim"
 # -- Mod Net specific
-STAT_MOD_NET_MODULATE_LOGITS = 'stat_mod_net_modulate_logits'
-STAT_MOD_NET_BIASED_SCALE = 'stat_mod_net_biased_scale'
-STAT_MOD_NET_BIASED_BIAS = 'stat_mod_net_biased_bias'
-STAT_MOD_NET_USE_BIAS = 'stat_mod_net_use_bias'
+STAT_MOD_NET_MODULATE_LOGITS = "stat_mod_net_modulate_logits"
+STAT_MOD_NET_BIASED_SCALE = "stat_mod_net_biased_scale"
+STAT_MOD_NET_BIASED_BIAS = "stat_mod_net_biased_bias"
+STAT_MOD_NET_USE_BIAS = "stat_mod_net_use_bias"
 # -- Dot Net specific
-STAT_DOT_NET_PRODUCT_DIM = 'stat_dot_net_product_dim'
-STAT_DOT_NET_BIASED_KERNEL = 'stat_dot_net_biased_kernel'
-STAT_DOT_NET_BIASED_BIAS = 'stat_dot_net_biased_bias'
-STAT_DOT_NET_USE_BIAS = 'stat_dot_net_use_bias'
+STAT_DOT_NET_PRODUCT_DIM = "stat_dot_net_product_dim"
+STAT_DOT_NET_BIASED_KERNEL = "stat_dot_net_biased_kernel"
+STAT_DOT_NET_BIASED_BIAS = "stat_dot_net_biased_bias"
+STAT_DOT_NET_USE_BIAS = "stat_dot_net_use_bias"
 # Bandpass signal decomposition
-DECOMP_BP_USE_DILATION = 'decomp_bp_use_dilation'
-DECOMP_BP_INITIAL_FILTERS = 'decomp_bp_initial_filters'
-DECOMP_BP_EXTRA_CONV_FILTERS = 'decomp_bp_extra_conv_filters'
+DECOMP_BP_USE_DILATION = "decomp_bp_use_dilation"
+DECOMP_BP_INITIAL_FILTERS = "decomp_bp_initial_filters"
+DECOMP_BP_EXTRA_CONV_FILTERS = "decomp_bp_extra_conv_filters"
 # Attention at blstm
-ATT_USE_EXTRA_FC = 'att_use_extra_fc'
-ATT_USE_ATTENTION_AFTER_BLSTM = 'att_use_attention_after_blstm'
+ATT_USE_EXTRA_FC = "att_use_extra_fc"
+ATT_USE_ATTENTION_AFTER_BLSTM = "att_use_attention_after_blstm"
 # Expert branch parameters
-EXPERT_BRANCH_WINDOW_DURATION = 'expert_branch_window_duration'
-EXPERT_BRANCH_REL_POWER_BROAD_LOWCUT = 'expert_branch_rel_power_lowcut'
-EXPERT_BRANCH_COVARIANCE_BROAD_LOWCUT = 'expert_branch_covariance_broad_lowcut'
-EXPERT_BRANCH_ABS_POWER_TRANSFORMATION = 'expert_branch_abs_power_transformation'
-EXPERT_BRANCH_REL_POWER_TRANSFORMATION = 'expert_branch_rel_power_transformation'
-EXPERT_BRANCH_COVARIANCE_TRANSFORMATION = 'expert_branch_covariance_transformation'
-EXPERT_BRANCH_CORRELATION_TRANSFORMATION = 'expert_branch_correlation_transformation'
-EXPERT_BRANCH_REL_POWER_USE_ZSCORE = 'expert_branch_rel_power_use_zscore'
-EXPERT_BRANCH_COVARIANCE_USE_ZSCORE = 'expert_branch_covariance_use_zscore'
-EXPERT_BRANCH_CORRELATION_USE_ZSCORE = 'expert_branch_correlation_use_zscore'
-EXPERT_BRANCH_ZSCORE_DISPERSION_MODE = 'expert_branch_zscore_dispersion_mode'
-EXPERT_BRANCH_COLLAPSE_TIME_MODE = 'expert_branch_collapse_time_mode'
-EXPERT_BRANCH_USE_ABS_POWER = 'expert_branch_use_abs_power'
-EXPERT_BRANCH_USE_REL_POWER = 'expert_branch_use_rel_power'
-EXPERT_BRANCH_USE_COVARIANCE = 'expert_branch_use_covariance'
-EXPERT_BRANCH_USE_CORRELATION = 'expert_branch_use_correlation'
-EXPERT_BRANCH_MODULATION_HIDDEN_FILTERS = 'expert_branch_modulation_hidden_filters'
-EXPERT_BRANCH_MODULATION_HIDDEN_KERNEL_SIZE = 'expert_branch_modulation_hidden_kernel_size'
-EXPERT_BRANCH_MODULATION_USE_SCALE = 'expert_branch_modulation_use_scale'
-EXPERT_BRANCH_MODULATION_USE_BIAS = 'expert_branch_modulation_use_bias'
-EXPERT_BRANCH_MODULATION_APPLY_SIGMOID_SCALE = 'expert_branch_modulation_apply_sigmoid_scale'
-EXPERT_BRANCH_REGRESSION_HIDDEN_UNITS = 'expert_branch_regression_hidden_units'
+EXPERT_BRANCH_WINDOW_DURATION = "expert_branch_window_duration"
+EXPERT_BRANCH_REL_POWER_BROAD_LOWCUT = "expert_branch_rel_power_lowcut"
+EXPERT_BRANCH_COVARIANCE_BROAD_LOWCUT = "expert_branch_covariance_broad_lowcut"
+EXPERT_BRANCH_ABS_POWER_TRANSFORMATION = "expert_branch_abs_power_transformation"
+EXPERT_BRANCH_REL_POWER_TRANSFORMATION = "expert_branch_rel_power_transformation"
+EXPERT_BRANCH_COVARIANCE_TRANSFORMATION = "expert_branch_covariance_transformation"
+EXPERT_BRANCH_CORRELATION_TRANSFORMATION = "expert_branch_correlation_transformation"
+EXPERT_BRANCH_REL_POWER_USE_ZSCORE = "expert_branch_rel_power_use_zscore"
+EXPERT_BRANCH_COVARIANCE_USE_ZSCORE = "expert_branch_covariance_use_zscore"
+EXPERT_BRANCH_CORRELATION_USE_ZSCORE = "expert_branch_correlation_use_zscore"
+EXPERT_BRANCH_ZSCORE_DISPERSION_MODE = "expert_branch_zscore_dispersion_mode"
+EXPERT_BRANCH_COLLAPSE_TIME_MODE = "expert_branch_collapse_time_mode"
+EXPERT_BRANCH_USE_ABS_POWER = "expert_branch_use_abs_power"
+EXPERT_BRANCH_USE_REL_POWER = "expert_branch_use_rel_power"
+EXPERT_BRANCH_USE_COVARIANCE = "expert_branch_use_covariance"
+EXPERT_BRANCH_USE_CORRELATION = "expert_branch_use_correlation"
+EXPERT_BRANCH_MODULATION_HIDDEN_FILTERS = "expert_branch_modulation_hidden_filters"
+EXPERT_BRANCH_MODULATION_HIDDEN_KERNEL_SIZE = (
+    "expert_branch_modulation_hidden_kernel_size"
+)
+EXPERT_BRANCH_MODULATION_USE_SCALE = "expert_branch_modulation_use_scale"
+EXPERT_BRANCH_MODULATION_USE_BIAS = "expert_branch_modulation_use_bias"
+EXPERT_BRANCH_MODULATION_APPLY_SIGMOID_SCALE = (
+    "expert_branch_modulation_apply_sigmoid_scale"
+)
+EXPERT_BRANCH_REGRESSION_HIDDEN_UNITS = "expert_branch_regression_hidden_units"
 EXPERT_BRANCH_REGRESSION_FROM_BLSTM = "expert_branch_regression_from_blstm"
 EXPERT_BRANCH_REGRESSION_LOSS_COEFFICIENT = "expert_branch_regression_loss_coefficient"
-BIGGER_STEM_KERNEL_SIZE = 'bigger_stem_kernel_size'
-BIGGER_STEM_FILTERS = 'bigger_stem_filters'
-BIGGER_BLOCKS_KERNEL_SIZE = 'bigger_blocks_kernel_size'
-BIGGER_STAGE_1_SIZE = 'bigger_stage_1_size'
-BIGGER_STAGE_2_SIZE = 'bigger_stage_2_size'
-BIGGER_STAGE_3_SIZE = 'bigger_stage_3_size'
-BIGGER_MAX_DILATION = 'bigger_max_dilation'
-BIGGER_LSTM_1_SIZE = 'bigger_lstm_1_size'
-BIGGER_LSTM_2_SIZE = 'bigger_lstm_2_size'
-BIGGER_ATT_N_BLOCKS = 'bigger_att_n_blocks'
-BIGGER_ATT_TYPE_NORM = 'bigger_att_type_norm'
-BIGGER_CONVOLUTION_PART_OPTION = 'bigger_convolution_part_option'
-BIGGER_CONTEXT_PART_OPTION = 'bigger_context_part_option'
-BIGGER_STEM_DEPTH = 'bigger_stem_depth'
-BIGGER_MULTI_TRANSFORMATION_BEFORE_ADD = 'bigger_multi_transformation_before_add'
+BIGGER_STEM_KERNEL_SIZE = "bigger_stem_kernel_size"
+BIGGER_STEM_FILTERS = "bigger_stem_filters"
+BIGGER_BLOCKS_KERNEL_SIZE = "bigger_blocks_kernel_size"
+BIGGER_STAGE_1_SIZE = "bigger_stage_1_size"
+BIGGER_STAGE_2_SIZE = "bigger_stage_2_size"
+BIGGER_STAGE_3_SIZE = "bigger_stage_3_size"
+BIGGER_MAX_DILATION = "bigger_max_dilation"
+BIGGER_LSTM_1_SIZE = "bigger_lstm_1_size"
+BIGGER_LSTM_2_SIZE = "bigger_lstm_2_size"
+BIGGER_ATT_N_BLOCKS = "bigger_att_n_blocks"
+BIGGER_ATT_TYPE_NORM = "bigger_att_type_norm"
+BIGGER_CONVOLUTION_PART_OPTION = "bigger_convolution_part_option"
+BIGGER_CONTEXT_PART_OPTION = "bigger_context_part_option"
+BIGGER_STEM_DEPTH = "bigger_stem_depth"
+BIGGER_MULTI_TRANSFORMATION_BEFORE_ADD = "bigger_multi_transformation_before_add"
 # Final models
-BORDER_DURATION_CWT = 'border_duration_cwt'
-BORDER_DURATION_CONV = 'border_duration_conv'
-CWT_EXPANSION_FACTOR = 'cwt_expansion_factor'
+BORDER_DURATION_CWT = "border_duration_cwt"
+BORDER_DURATION_CONV = "border_duration_conv"
+CWT_EXPANSION_FACTOR = "cwt_expansion_factor"
 
 """ Loss params
 
@@ -313,19 +317,19 @@ class_weights: ({None, BALANCED, array_like}) Determines the class
     is the weight applied to class i.
 type_loss: ({CROSS_ENTROPY_LOSS, DICE_LOSS}) Type of loss to be used 
 """
-CLASS_WEIGHTS = 'class_weights'
-TYPE_LOSS = 'type_loss'
-FOCUSING_PARAMETER = 'focusing_parameter'
-WORST_MINING_MIN_NEGATIVE = 'worst_mining_min_negative'
-WORST_MINING_FACTOR_NEGATIVE = 'worst_mining_factor_negative'
-NEG_ENTROPY_PARAMETER = 'neg_entropy_parameter'
-SOFT_LABEL_PARAMETER = 'soft_label_parameter'
-MIS_WEIGHT_PARAMETER = 'mis_weight_parameter'
-BORDER_WEIGHT_AMPLITUDE = 'border_weight_amplitude'
-BORDER_WEIGHT_HALF_WIDTH = 'border_weight_half_width'
-MIX_WEIGHTS_STRATEGY = 'mix_weights_strategy'
-PREDICTION_VARIABILITY_REGULARIZER = 'prediction_variability_regularizer'
-PREDICTION_VARIABILITY_LAG = 'prediction_variability_lag'
+CLASS_WEIGHTS = "class_weights"
+TYPE_LOSS = "type_loss"
+FOCUSING_PARAMETER = "focusing_parameter"
+WORST_MINING_MIN_NEGATIVE = "worst_mining_min_negative"
+WORST_MINING_FACTOR_NEGATIVE = "worst_mining_factor_negative"
+NEG_ENTROPY_PARAMETER = "neg_entropy_parameter"
+SOFT_LABEL_PARAMETER = "soft_label_parameter"
+MIS_WEIGHT_PARAMETER = "mis_weight_parameter"
+BORDER_WEIGHT_AMPLITUDE = "border_weight_amplitude"
+BORDER_WEIGHT_HALF_WIDTH = "border_weight_half_width"
+MIX_WEIGHTS_STRATEGY = "mix_weights_strategy"
+PREDICTION_VARIABILITY_REGULARIZER = "prediction_variability_regularizer"
+PREDICTION_VARIABILITY_LAG = "prediction_variability_lag"
 
 SOFT_FOCAL_GAMMA = "soft_focal_gamma"
 SOFT_FOCAL_EPSILON = "soft_focal_epsilon"
@@ -346,12 +350,12 @@ use_nesterov: (bool) whether to use nesterov momentum instead of regular
     momentum for SGD optimization.
 type_optimizer: ({ADAM_OPTIMIZER, SGD_OPTIMIZER}) Type of optimizer to be used.
 """
-LEARNING_RATE = 'learning_rate'
-CLIP_NORM = 'clip_norm'
-MOMENTUM = 'momentum'
-USE_NESTEROV_MOMENTUM = 'use_nesterov'
-TYPE_OPTIMIZER = 'type_optimizer'
-WEIGHT_DECAY_FACTOR = 'weight_decay_factor'
+LEARNING_RATE = "learning_rate"
+CLIP_NORM = "clip_norm"
+MOMENTUM = "momentum"
+USE_NESTEROV_MOMENTUM = "use_nesterov"
+TYPE_OPTIMIZER = "type_optimizer"
+WEIGHT_DECAY_FACTOR = "weight_decay_factor"
 
 
 """ Training params
@@ -359,41 +363,41 @@ WEIGHT_DECAY_FACTOR = 'weight_decay_factor'
 max_epochs: (int) Maximum numer of epochs to be performed in the training loop.
 nstats: (int) Frequency in iterations to display metrics.
 """
-MAX_ITERS = 'max_iters'
-ITERS_STATS = 'iters_stats'
-ITERS_LR_UPDATE = 'iters_lr_update'
-REL_TOL_CRITERION = 'rel_tol_criterion'
-LR_UPDATE_FACTOR = 'lr_update_factor'
-LR_UPDATE_CRITERION = 'lr_update_criterion'
-MAX_LR_UPDATES = 'max_lr_updates'
-FACTOR_INIT_LR_FINE_TUNE = 'factor_init_lr_fine_tune'
-LR_UPDATE_RESET_OPTIMIZER = 'lr_update_reset_optimizer'
-KEEP_BEST_VALIDATION = 'keep_best_validation'
-FORCED_SEPARATION_DURATION = 'forced_separation_duration'
-PRETRAIN_ITERS_INIT = 'pretrain_iters_init'
-PRETRAIN_ITERS_ANNEAL = 'pretrain_iters_anneal'
-PRETRAIN_MAX_LR_UPDATES = 'pretrain_max_lr_updates'
-MAX_EPOCHS = 'max_epochs'
-STATS_PER_EPOCH = 'stats_per_epoch'
-EPOCHS_LR_UPDATE = 'epochs_lr_update'
-PRETRAIN_EPOCHS_INIT = 'pretrain_epochs_init'
-PRETRAIN_EPOCHS_ANNEAL = 'pretrain_epochs_anneal'
-VALIDATION_AVERAGE_MODE = 'validation_average_mode'
+MAX_ITERS = "max_iters"
+ITERS_STATS = "iters_stats"
+ITERS_LR_UPDATE = "iters_lr_update"
+REL_TOL_CRITERION = "rel_tol_criterion"
+LR_UPDATE_FACTOR = "lr_update_factor"
+LR_UPDATE_CRITERION = "lr_update_criterion"
+MAX_LR_UPDATES = "max_lr_updates"
+FACTOR_INIT_LR_FINE_TUNE = "factor_init_lr_fine_tune"
+LR_UPDATE_RESET_OPTIMIZER = "lr_update_reset_optimizer"
+KEEP_BEST_VALIDATION = "keep_best_validation"
+FORCED_SEPARATION_DURATION = "forced_separation_duration"
+PRETRAIN_ITERS_INIT = "pretrain_iters_init"
+PRETRAIN_ITERS_ANNEAL = "pretrain_iters_anneal"
+PRETRAIN_MAX_LR_UPDATES = "pretrain_max_lr_updates"
+MAX_EPOCHS = "max_epochs"
+STATS_PER_EPOCH = "stats_per_epoch"
+EPOCHS_LR_UPDATE = "epochs_lr_update"
+PRETRAIN_EPOCHS_INIT = "pretrain_epochs_init"
+PRETRAIN_EPOCHS_ANNEAL = "pretrain_epochs_anneal"
+VALIDATION_AVERAGE_MODE = "validation_average_mode"
 
 """ Postprocessing params 
 """
-TOTAL_DOWNSAMPLING_FACTOR = 'total_downsampling_factor'
-ALIGNED_DOWNSAMPLING = 'aligned_downsampling'
-SS_MIN_SEPARATION = 'ss_min_separation'
-SS_MIN_DURATION = 'ss_min_duration'
-SS_MAX_DURATION = 'ss_max_duration'
-KC_MIN_SEPARATION = 'kc_min_separation'
-KC_MIN_DURATION = 'kc_min_duration'
-KC_MAX_DURATION = 'kc_max_duration'
-REPAIR_LONG_DETECTIONS = 'repair_long_detections'
+TOTAL_DOWNSAMPLING_FACTOR = "total_downsampling_factor"
+ALIGNED_DOWNSAMPLING = "aligned_downsampling"
+SS_MIN_SEPARATION = "ss_min_separation"
+SS_MIN_DURATION = "ss_min_duration"
+SS_MAX_DURATION = "ss_max_duration"
+KC_MIN_SEPARATION = "kc_min_separation"
+KC_MIN_DURATION = "kc_min_duration"
+KC_MAX_DURATION = "kc_max_duration"
+REPAIR_LONG_DETECTIONS = "repair_long_detections"
 
 """Inference params"""
-PREDICT_WITH_AUGMENTED_PAGE = 'predict_with_augmented_page'
+PREDICT_WITH_AUGMENTED_PAGE = "predict_with_augmented_page"
 
 
 """ Default utility params 
@@ -408,41 +412,85 @@ DEFAULT_INTA_POSTPROCESSING_PARAMS = {
 }
 DEFAULT_AUG_RANDOM_WAVES_PARAMS_SPINDLE = [
     dict(
-        min_frequency=0.5, max_frequency=2, frequency_bandwidth=1, max_amplitude_microvolts=18,
-        min_duration=3, max_duration=5, mask=constants.MASK_NONE),
+        min_frequency=0.5,
+        max_frequency=2,
+        frequency_bandwidth=1,
+        max_amplitude_microvolts=18,
+        min_duration=3,
+        max_duration=5,
+        mask=constants.MASK_NONE,
+    ),
     # dict(
     #     min_frequency=2, max_frequency=4, frequency_bandwidth=1, max_amplitude_microvolts=13,
     #     min_duration=3, max_duration=5, mask=constants.MASK_NONE),
     dict(
-        min_frequency=4, max_frequency=8, frequency_bandwidth=2, max_amplitude_microvolts=20,
-        min_duration=1, max_duration=5, mask=constants.MASK_KEEP_BACKGROUND),
+        min_frequency=4,
+        max_frequency=8,
+        frequency_bandwidth=2,
+        max_amplitude_microvolts=20,
+        min_duration=1,
+        max_duration=5,
+        mask=constants.MASK_KEEP_BACKGROUND,
+    ),
     dict(
-        min_frequency=7, max_frequency=10, frequency_bandwidth=2, max_amplitude_microvolts=12,
-        min_duration=1, max_duration=5, mask=constants.MASK_KEEP_BACKGROUND),
+        min_frequency=7,
+        max_frequency=10,
+        frequency_bandwidth=2,
+        max_amplitude_microvolts=12,
+        min_duration=1,
+        max_duration=5,
+        mask=constants.MASK_KEEP_BACKGROUND,
+    ),
 ]
 DEFAULT_AUG_RANDOM_WAVES_PARAMS_KCOMPLEX = [
     dict(
-        min_frequency=11, max_frequency=16, frequency_bandwidth=2, max_amplitude_microvolts=10,
-        min_duration=1, max_duration=5, mask=constants.MASK_NONE),
+        min_frequency=11,
+        max_frequency=16,
+        frequency_bandwidth=2,
+        max_amplitude_microvolts=10,
+        min_duration=1,
+        max_duration=5,
+        mask=constants.MASK_NONE,
+    ),
 ]
 DEFAULT_AUG_RANDOM_ANTI_WAVES_PARAMS_SPINDLE = [
     dict(
-        lowcut=None, highcut=2, max_attenuation=0.5,
-        min_duration=3, max_duration=5, mask=constants.MASK_NONE),
+        lowcut=None,
+        highcut=2,
+        max_attenuation=0.5,
+        min_duration=3,
+        max_duration=5,
+        mask=constants.MASK_NONE,
+    ),
     dict(
-        lowcut=4, highcut=8, max_attenuation=1.0,
-        min_duration=1, max_duration=5, mask=constants.MASK_KEEP_EVENTS),
+        lowcut=4,
+        highcut=8,
+        max_attenuation=1.0,
+        min_duration=1,
+        max_duration=5,
+        mask=constants.MASK_KEEP_EVENTS,
+    ),
     dict(
-        lowcut=7, highcut=10, max_attenuation=1.0,
-        min_duration=1, max_duration=5, mask=constants.MASK_KEEP_EVENTS),
+        lowcut=7,
+        highcut=10,
+        max_attenuation=1.0,
+        min_duration=1,
+        max_duration=5,
+        mask=constants.MASK_KEEP_EVENTS,
+    ),
     # dict(
     #     lowcut=11, highcut=16, max_attenuation=1.0,
     #     min_duration=1, max_duration=5, mask=constants.MASK_KEEP_BACKGROUND),
 ]
 DEFAULT_AUG_RANDOM_ANTI_WAVES_PARAMS_KCOMPLEX = [
     dict(
-        lowcut=11, highcut=16, max_attenuation=1.0,
-        min_duration=1, max_duration=5, mask=constants.MASK_NONE),
+        lowcut=11,
+        highcut=16,
+        max_attenuation=1.0,
+        min_duration=1,
+        max_duration=5,
+        mask=constants.MASK_NONE,
+    ),
 ]
 
 

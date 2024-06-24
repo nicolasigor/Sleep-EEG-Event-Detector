@@ -19,18 +19,18 @@ from pprint import pprint
 import numpy as np
 import pyedflib
 
-project_root = os.path.abspath('..')
+project_root = os.path.abspath("..")
 sys.path.append(project_root)
 
 # Change this to the path where the MASS dataset is stored:
-PATH_MODA_RAW = '/home/ntapia/Projects/Sleep_Databases/MASS_Database_2020_Full/C1'
+PATH_MODA_RAW = "/home/ntapia/Projects/Sleep_Databases/MASS_Database_2020_Full/C1"
 
 
 def get_filepaths(main_path):
     files = os.listdir(main_path)
-    files = [f for f in files if '.edf' in f]
-    signal_files = [f for f in files if 'PSG' in f]
-    states_files = [f for f in files if 'Base' in f]
+    files = [f for f in files if ".edf" in f]
+    signal_files = [f for f in files if "PSG" in f]
+    states_files = [f for f in files if "Base" in f]
     signal_files = [os.path.join(main_path, f) for f in signal_files]
     states_files = [os.path.join(main_path, f) for f in states_files]
     signal_files.sort()
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     # Using sleep state information is not necessary for the MODA dataset, because
     # sleep spindle annotations are only made for valid sleep states
 
-    required_channel = 'C3'
+    required_channel = "C3"
 
     signal_files, states_files = get_filepaths(PATH_MODA_RAW)
     assert len(signal_files) == len(states_files)
@@ -61,7 +61,9 @@ if __name__ == "__main__":
         # Read signal
         with pyedflib.EdfReader(signal_f) as file:
             channel_names = file.getSignalLabels()
-            channel_names_valid = [chn for chn in channel_names if required_channel in chn]
+            channel_names_valid = [
+                chn for chn in channel_names if required_channel in chn
+            ]
             fs_valid = []
             for chn in channel_names_valid:
                 extraction_loc = channel_names.index(chn)

@@ -7,7 +7,7 @@ from __future__ import print_function
 import os
 
 PATH_THIS_DIR = os.path.dirname(__file__)
-PATH_RESOURCES = os.path.join(PATH_THIS_DIR, '..', '..', 'resources')
+PATH_RESOURCES = os.path.join(PATH_THIS_DIR, "..", "..", "resources")
 
 import numpy as np
 import tensorflow as tf
@@ -19,18 +19,12 @@ from sleeprnn.common import checks
 from sleeprnn.common import pkeys
 
 
-def dummy_net(
-        inputs,
-        params,
-        training,
-        name='model_dummy'
-):
-    """ Dummy network used for debugging purposes."""
-    print('Using model DUMMY')
+def dummy_net(inputs, params, training, name="model_dummy"):
+    """Dummy network used for debugging purposes."""
+    print("Using model DUMMY")
     with tf.variable_scope(name):
         cwt_prebn = None
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         inputs = inputs[:, border_crop:-border_crop]
         # Simulates downsampling by 8
         inputs = inputs[:, ::8]
@@ -44,24 +38,19 @@ def dummy_net(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
-        with tf.variable_scope('probabilities'):
+            name="logits",
+        )
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
     return logits, probabilities, cwt_prebn
 
 
-def debug_net(
-        inputs,
-        params,
-        training,
-        name='model_debug'
-):
-    """ Dummy network used for debugging purposes."""
-    print('Using DEBUG net')
+def debug_net(inputs, params, training, name="model_debug"):
+    """Dummy network used for debugging purposes."""
+    print("Using DEBUG net")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         # Shape is [batch, time, n_scales, n_channels]
         outputs, cwt_prebn = layers.cmorlet_layer(
@@ -70,7 +59,7 @@ def debug_net(
             params[pkeys.FS],
             lower_freq=params[pkeys.LOWER_FREQ],
             upper_freq=params[pkeys.UPPER_FREQ],
-            n_scales=64, #params[pkeys.N_SCALES],
+            n_scales=64,  # params[pkeys.N_SCALES],
             stride=2,
             size_factor=params[pkeys.WAVELET_SIZE_FACTOR],
             border_crop=border_crop,
@@ -78,24 +67,27 @@ def debug_net(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         if params[pkeys.USE_RELU]:
             outputs = tf.nn.relu(outputs)
 
         outputs = tf.layers.average_pooling2d(
-            inputs=outputs, pool_size=(1, 2), strides=(1, 2))
+            inputs=outputs, pool_size=(1, 2), strides=(1, 2)
+        )
 
         # Convolutional stage (standard feed-forward)
         init_filters = params[pkeys.INITIAL_CONV_FILTERS]
         outputs = layers.conv2d_prebn_block(
             outputs,
-            16,#init_filters,
+            16,  # init_filters,
             training,
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -104,7 +96,8 @@ def debug_net(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # outputs = layers.conv2d_prebn_block(
         #     outputs,
@@ -116,12 +109,12 @@ def debug_net(
         #     name='convblock_3')
 
         # Flattening for dense part, shape [batch, time, feats]
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
             outputs,
-            128, #params[pkeys.INITIAL_LSTM_UNITS],
+            128,  # params[pkeys.INITIAL_LSTM_UNITS],
             n_layers=1,
             num_dirs=constants.UNIDIRECTIONAL,
             dropout_first_lstm=params[pkeys.TYPE_DROPOUT],
@@ -129,7 +122,8 @@ def debug_net(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -139,19 +133,15 @@ def debug_net(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
-        with tf.variable_scope('probabilities'):
+            name="logits",
+        )
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
     return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v1(
-        inputs,
-        params,
-        training,
-        name='model_v1'
-):
-    """ Wavelet transform and BLSTM to make a prediction.
+def wavelet_blstm_net_v1(inputs, params, training, name="model_v1"):
+    """Wavelet transform and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms. After this, the
     outputs is flatten and is passed to a 2-layers BLSTM.
@@ -163,11 +153,10 @@ def wavelet_blstm_net_v1(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model') A name for the network.
     """
-    print('Using model V1')
+    print("Using model V1")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer(
             inputs,
@@ -183,13 +172,14 @@ def wavelet_blstm_net_v1(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         if params[pkeys.USE_RELU]:
             outputs = tf.nn.relu(outputs)
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -203,7 +193,8 @@ def wavelet_blstm_net_v1(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -216,7 +207,8 @@ def wavelet_blstm_net_v1(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -228,7 +220,8 @@ def wavelet_blstm_net_v1(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -238,21 +231,17 @@ def wavelet_blstm_net_v1(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v4(
-        inputs,
-        params,
-        training,
-        name='model_v4'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v4(inputs, params, training, name="model_v4"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -266,11 +255,10 @@ def wavelet_blstm_net_v4(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v4') A name for the network.
     """
-    print('Using model V4')
+    print("Using model V4")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer(
             inputs,
@@ -286,7 +274,8 @@ def wavelet_blstm_net_v4(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         if params[pkeys.USE_RELU]:
             outputs = tf.nn.relu(outputs)
@@ -301,7 +290,8 @@ def wavelet_blstm_net_v4(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
         outputs = layers.conv2d_prebn_block(
             outputs,
             init_filters * 2,
@@ -309,7 +299,8 @@ def wavelet_blstm_net_v4(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
         outputs = layers.conv2d_prebn_block(
             outputs,
             init_filters * 4,
@@ -317,10 +308,11 @@ def wavelet_blstm_net_v4(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_3')
+            name="convblock_3",
+        )
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -333,7 +325,8 @@ def wavelet_blstm_net_v4(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -345,7 +338,8 @@ def wavelet_blstm_net_v4(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -355,20 +349,16 @@ def wavelet_blstm_net_v4(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v5(
-        inputs,
-        params,
-        training,
-        name='model_v5'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v5(inputs, params, training, name="model_v5"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -382,11 +372,10 @@ def wavelet_blstm_net_v5(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v5') A name for the network.
     """
-    print('Using model V5')
+    print("Using model V5")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer(
             inputs,
@@ -402,7 +391,8 @@ def wavelet_blstm_net_v5(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         if params[pkeys.USE_RELU]:
             outputs = tf.nn.relu(outputs)
@@ -417,14 +407,17 @@ def wavelet_blstm_net_v5(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=None,
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         # Maxpool in frequencies, then avg in time
         # shape is [batch, time, freqs, channels]
         outputs = tf.layers.max_pooling2d(
-            inputs=outputs, pool_size=(1, 2), strides=(1, 2))
+            inputs=outputs, pool_size=(1, 2), strides=(1, 2)
+        )
         outputs = tf.layers.average_pooling2d(
-            inputs=outputs, pool_size=(2, 1), strides=(2, 1))
+            inputs=outputs, pool_size=(2, 1), strides=(2, 1)
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -433,14 +426,17 @@ def wavelet_blstm_net_v5(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=None,
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Maxpool in frequencies, then avg in time
         # shape is [batch, time, freqs, channels]
         outputs = tf.layers.max_pooling2d(
-            inputs=outputs, pool_size=(1, 2), strides=(1, 2))
+            inputs=outputs, pool_size=(1, 2), strides=(1, 2)
+        )
         outputs = tf.layers.average_pooling2d(
-            inputs=outputs, pool_size=(2, 1), strides=(2, 1))
+            inputs=outputs, pool_size=(2, 1), strides=(2, 1)
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -449,17 +445,20 @@ def wavelet_blstm_net_v5(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=None,
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_3')
+            name="convblock_3",
+        )
 
         # Maxpool in frequencies, then avg in time
         # shape is [batch, time, freqs, channels]
         outputs = tf.layers.max_pooling2d(
-            inputs=outputs, pool_size=(1, 2), strides=(1, 2))
+            inputs=outputs, pool_size=(1, 2), strides=(1, 2)
+        )
         outputs = tf.layers.average_pooling2d(
-            inputs=outputs, pool_size=(2, 1), strides=(2, 1))
+            inputs=outputs, pool_size=(2, 1), strides=(2, 1)
+        )
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -472,7 +471,8 @@ def wavelet_blstm_net_v5(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -484,7 +484,8 @@ def wavelet_blstm_net_v5(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -494,20 +495,16 @@ def wavelet_blstm_net_v5(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v6(
-        inputs,
-        params,
-        training,
-        name='model_v6'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v6(inputs, params, training, name="model_v6"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -521,11 +518,10 @@ def wavelet_blstm_net_v6(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v6') A name for the network.
     """
-    print('Using model V6')
+    print("Using model V6")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer(
             inputs,
@@ -541,7 +537,8 @@ def wavelet_blstm_net_v6(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         if params[pkeys.USE_RELU]:
             outputs = tf.nn.relu(outputs)
@@ -556,14 +553,17 @@ def wavelet_blstm_net_v6(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=None,
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         # avg in time, then Maxpool in frequencies
         # shape is [batch, time, freqs, channels]
         outputs = tf.layers.average_pooling2d(
-            inputs=outputs, pool_size=(2, 1), strides=(2, 1))
+            inputs=outputs, pool_size=(2, 1), strides=(2, 1)
+        )
         outputs = tf.layers.max_pooling2d(
-            inputs=outputs, pool_size=(1, 2), strides=(1, 2))
+            inputs=outputs, pool_size=(1, 2), strides=(1, 2)
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -572,14 +572,17 @@ def wavelet_blstm_net_v6(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=None,
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # avg in time, then Maxpool in frequencies
         # shape is [batch, time, freqs, channels]
         outputs = tf.layers.average_pooling2d(
-            inputs=outputs, pool_size=(2, 1), strides=(2, 1))
+            inputs=outputs, pool_size=(2, 1), strides=(2, 1)
+        )
         outputs = tf.layers.max_pooling2d(
-            inputs=outputs, pool_size=(1, 2), strides=(1, 2))
+            inputs=outputs, pool_size=(1, 2), strides=(1, 2)
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -588,17 +591,20 @@ def wavelet_blstm_net_v6(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=None,
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_3')
+            name="convblock_3",
+        )
 
         # avg in time, then Maxpool in frequencies
         # shape is [batch, time, freqs, channels]
         outputs = tf.layers.average_pooling2d(
-            inputs=outputs, pool_size=(2, 1), strides=(2, 1))
+            inputs=outputs, pool_size=(2, 1), strides=(2, 1)
+        )
         outputs = tf.layers.max_pooling2d(
-            inputs=outputs, pool_size=(1, 2), strides=(1, 2))
+            inputs=outputs, pool_size=(1, 2), strides=(1, 2)
+        )
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -611,7 +617,8 @@ def wavelet_blstm_net_v6(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -623,7 +630,8 @@ def wavelet_blstm_net_v6(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -633,20 +641,16 @@ def wavelet_blstm_net_v6(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v7(
-        inputs,
-        params,
-        training,
-        name='model_v7'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v7(inputs, params, training, name="model_v7"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -660,11 +664,10 @@ def wavelet_blstm_net_v7(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v7') A name for the network.
     """
-    print('Using model V7')
+    print("Using model V7")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer(
             inputs,
@@ -680,7 +683,8 @@ def wavelet_blstm_net_v7(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         if params[pkeys.USE_RELU]:
             outputs = tf.nn.relu(outputs)
@@ -695,7 +699,8 @@ def wavelet_blstm_net_v7(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
         outputs = layers.conv2d_prebn_block(
             outputs,
             init_filters,
@@ -703,7 +708,8 @@ def wavelet_blstm_net_v7(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
         outputs = layers.conv2d_prebn_block(
             outputs,
             init_filters,
@@ -711,10 +717,11 @@ def wavelet_blstm_net_v7(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_3')
+            name="convblock_3",
+        )
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -727,7 +734,8 @@ def wavelet_blstm_net_v7(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -739,7 +747,8 @@ def wavelet_blstm_net_v7(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -749,20 +758,16 @@ def wavelet_blstm_net_v7(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v7_lite(
-        inputs,
-        params,
-        training,
-        name='model_v7_lite'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v7_lite(inputs, params, training, name="model_v7_lite"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -776,11 +781,10 @@ def wavelet_blstm_net_v7_lite(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v7_lite') A name for the network.
     """
-    print('Using model V7 LITE')
+    print("Using model V7 LITE")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer(
             inputs,
@@ -796,7 +800,8 @@ def wavelet_blstm_net_v7_lite(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         # outputs = tf.layers.average_pooling2d(
         #     inputs=outputs, pool_size=(1, 2), strides=(1, 2))
@@ -813,7 +818,8 @@ def wavelet_blstm_net_v7_lite(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -822,7 +828,8 @@ def wavelet_blstm_net_v7_lite(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # outputs = layers.conv2d_prebn_block(
         #     outputs,
@@ -834,7 +841,7 @@ def wavelet_blstm_net_v7_lite(
         #     name='convblock_3')
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -847,7 +854,8 @@ def wavelet_blstm_net_v7_lite(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -859,7 +867,8 @@ def wavelet_blstm_net_v7_lite(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -869,20 +878,16 @@ def wavelet_blstm_net_v7_lite(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v7_litebig(
-        inputs,
-        params,
-        training,
-        name='model_v7_litebig'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v7_litebig(inputs, params, training, name="model_v7_litebig"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -896,11 +901,10 @@ def wavelet_blstm_net_v7_litebig(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v7_litebig') A name for the network.
     """
-    print('Using model V7 LITE BIG')
+    print("Using model V7 LITE BIG")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer(
             inputs,
@@ -916,7 +920,8 @@ def wavelet_blstm_net_v7_litebig(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         # outputs = tf.layers.average_pooling2d(
         #     inputs=outputs, pool_size=(1, 2), strides=(1, 2))
@@ -933,7 +938,8 @@ def wavelet_blstm_net_v7_litebig(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -942,7 +948,8 @@ def wavelet_blstm_net_v7_litebig(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # outputs = layers.conv2d_prebn_block(
         #     outputs,
@@ -954,7 +961,7 @@ def wavelet_blstm_net_v7_litebig(
         #     name='convblock_3')
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -967,7 +974,8 @@ def wavelet_blstm_net_v7_litebig(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -979,7 +987,8 @@ def wavelet_blstm_net_v7_litebig(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -989,20 +998,16 @@ def wavelet_blstm_net_v7_litebig(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v8(
-        inputs,
-        params,
-        training,
-        name='model_v8'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v8(inputs, params, training, name="model_v8"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -1016,11 +1021,10 @@ def wavelet_blstm_net_v8(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v8') A name for the network.
     """
-    print('Using model V8')
+    print("Using model V8")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer(
             inputs,
@@ -1036,7 +1040,8 @@ def wavelet_blstm_net_v8(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         if params[pkeys.USE_RELU]:
             outputs = tf.nn.relu(outputs)
@@ -1056,7 +1061,8 @@ def wavelet_blstm_net_v8(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1_mag')
+            name="convblock_1_mag",
+        )
         outputs_magnitude = layers.conv2d_prebn_block(
             outputs_magnitude,
             32,
@@ -1064,7 +1070,8 @@ def wavelet_blstm_net_v8(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2_mag')
+            name="convblock_2_mag",
+        )
 
         # PHASE PATH
 
@@ -1077,7 +1084,8 @@ def wavelet_blstm_net_v8(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1_pha')
+            name="convblock_1_pha",
+        )
         outputs_phase = layers.conv2d_prebn_block(
             outputs_phase,
             32,
@@ -1085,13 +1093,14 @@ def wavelet_blstm_net_v8(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2_pha')
+            name="convblock_2_pha",
+        )
 
         # Now concatenate magnitude and phase paths
         outputs = tf.concat([outputs_magnitude, outputs_phase], axis=-1)
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -1104,7 +1113,8 @@ def wavelet_blstm_net_v8(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -1116,7 +1126,8 @@ def wavelet_blstm_net_v8(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -1126,20 +1137,16 @@ def wavelet_blstm_net_v8(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v9(
-        inputs,
-        params,
-        training,
-        name='model_v9'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v9(inputs, params, training, name="model_v9"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -1153,11 +1160,10 @@ def wavelet_blstm_net_v9(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v9') A name for the network.
     """
-    print('Using model V9')
+    print("Using model V9")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer(
             inputs,
@@ -1173,7 +1179,8 @@ def wavelet_blstm_net_v9(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         if params[pkeys.USE_RELU]:
             outputs = tf.nn.relu(outputs)
@@ -1193,7 +1200,8 @@ def wavelet_blstm_net_v9(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1_mag')
+            name="convblock_1_mag",
+        )
 
         # PHASE PATH
 
@@ -1206,7 +1214,8 @@ def wavelet_blstm_net_v9(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1_pha')
+            name="convblock_1_pha",
+        )
 
         # Now concatenate magnitude and phase paths
         outputs = tf.concat([outputs_magnitude, outputs_phase], axis=-1)
@@ -1218,10 +1227,11 @@ def wavelet_blstm_net_v9(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -1234,7 +1244,8 @@ def wavelet_blstm_net_v9(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -1246,7 +1257,8 @@ def wavelet_blstm_net_v9(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -1256,20 +1268,16 @@ def wavelet_blstm_net_v9(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v10(
-        inputs,
-        params,
-        training,
-        name='model_v10'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v10(inputs, params, training, name="model_v10"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -1283,11 +1291,10 @@ def wavelet_blstm_net_v10(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v10') A name for the network.
     """
-    print('Using model V10')
+    print("Using model V10")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer(
             inputs,
@@ -1303,7 +1310,8 @@ def wavelet_blstm_net_v10(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         if params[pkeys.USE_RELU]:
             outputs = tf.nn.relu(outputs)
@@ -1318,7 +1326,8 @@ def wavelet_blstm_net_v10(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -1327,10 +1336,11 @@ def wavelet_blstm_net_v10(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -1343,7 +1353,8 @@ def wavelet_blstm_net_v10(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -1355,7 +1366,8 @@ def wavelet_blstm_net_v10(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -1365,20 +1377,16 @@ def wavelet_blstm_net_v10(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v11(
-        inputs,
-        params,
-        training,
-        name='model_v11'
-):
-    """ conv 1D and BLSTM to make a prediction.
+def wavelet_blstm_net_v11(inputs, params, training, name="model_v11"):
+    """conv 1D and BLSTM to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -1391,11 +1399,10 @@ def wavelet_blstm_net_v11(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v11') A name for the network.
     """
-    print('Using model V11 (Time-Domain)')
+    print("Using model V11 (Time-Domain)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -1407,9 +1414,11 @@ def wavelet_blstm_net_v11(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -1422,7 +1431,8 @@ def wavelet_blstm_net_v11(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -1431,7 +1441,8 @@ def wavelet_blstm_net_v11(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -1440,7 +1451,8 @@ def wavelet_blstm_net_v11(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -1453,7 +1465,8 @@ def wavelet_blstm_net_v11(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -1465,7 +1478,8 @@ def wavelet_blstm_net_v11(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -1475,24 +1489,18 @@ def wavelet_blstm_net_v11(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
-        other_outputs_dict = {
-            'last_hidden': outputs
-        }
+            tf.summary.histogram("probabilities", probabilities)
+        other_outputs_dict = {"last_hidden": outputs}
         return logits, probabilities, other_outputs_dict
 
 
-def wavelet_blstm_net_v12(
-        inputs,
-        params,
-        training,
-        name='model_v12'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v12(inputs, params, training, name="model_v12"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -1506,11 +1514,10 @@ def wavelet_blstm_net_v12(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v12') A name for the network.
     """
-    print('Using model V12 (cwt)')
+    print("Using model V12 (cwt)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer(
             inputs,
@@ -1526,7 +1533,8 @@ def wavelet_blstm_net_v12(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         if params[pkeys.USE_RELU]:
             outputs = tf.nn.relu(outputs)
@@ -1540,7 +1548,8 @@ def wavelet_blstm_net_v12(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -1549,10 +1558,11 @@ def wavelet_blstm_net_v12(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -1565,7 +1575,8 @@ def wavelet_blstm_net_v12(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -1577,7 +1588,8 @@ def wavelet_blstm_net_v12(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -1587,20 +1599,16 @@ def wavelet_blstm_net_v12(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v13(
-        inputs,
-        params,
-        training,
-        name='model_v13'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v13(inputs, params, training, name="model_v13"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -1614,11 +1622,10 @@ def wavelet_blstm_net_v13(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v13') A name for the network.
     """
-    print('Using model V13 (cwt using freqs as channels)')
+    print("Using model V13 (cwt using freqs as channels)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer(
             inputs,
@@ -1634,13 +1641,14 @@ def wavelet_blstm_net_v13(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         if params[pkeys.USE_RELU]:
             outputs = tf.nn.relu(outputs)
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Convolutional stage (standard feed-forward)
         outputs = layers.conv1d_prebn_block(
@@ -1651,7 +1659,8 @@ def wavelet_blstm_net_v13(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -1660,7 +1669,8 @@ def wavelet_blstm_net_v13(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -1673,7 +1683,8 @@ def wavelet_blstm_net_v13(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -1685,7 +1696,8 @@ def wavelet_blstm_net_v13(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -1695,20 +1707,16 @@ def wavelet_blstm_net_v13(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v14(
-        inputs,
-        params,
-        training,
-        name='model_v14'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v14(inputs, params, training, name="model_v14"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -1722,11 +1730,10 @@ def wavelet_blstm_net_v14(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v14') A name for the network.
     """
-    print('Using model V14 (cwt using freqs as channels)')
+    print("Using model V14 (cwt using freqs as channels)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer(
             inputs,
@@ -1742,13 +1749,14 @@ def wavelet_blstm_net_v14(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         if params[pkeys.USE_RELU]:
             outputs = tf.nn.relu(outputs)
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Convolutional stage (standard feed-forward)
         outputs = layers.conv1d_prebn_block(
@@ -1759,7 +1767,8 @@ def wavelet_blstm_net_v14(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -1768,7 +1777,8 @@ def wavelet_blstm_net_v14(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -1777,7 +1787,8 @@ def wavelet_blstm_net_v14(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_3')
+            name="convblock_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -1790,7 +1801,8 @@ def wavelet_blstm_net_v14(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -1802,7 +1814,8 @@ def wavelet_blstm_net_v14(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -1812,20 +1825,16 @@ def wavelet_blstm_net_v14(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v15(
-        inputs,
-        params,
-        training,
-        name='model_v15'
-):
-    """ conv1D in time, conv2D in cwt, and BLSTM to make a prediction.
+def wavelet_blstm_net_v15(inputs, params, training, name="model_v15"):
+    """conv1D in time, conv2D in cwt, and BLSTM to make a prediction.
 
     Args:
         inputs: (2d tensor) input tensor of shape [batch_size, time_len]
@@ -1833,13 +1842,12 @@ def wavelet_blstm_net_v15(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v15') A name for the network.
     """
-    print('Using model V15 (Time_11 + CWT_12)')
+    print("Using model V15 (Time_11 + CWT_12)")
     with tf.variable_scope(name):
 
         # ------ TIME PATH
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -1851,9 +1859,11 @@ def wavelet_blstm_net_v15(
 
         # BN at input
         outputs_time = layers.batchnorm_layer(
-            inputs_time, 'bn_input',
+            inputs_time,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -1866,7 +1876,8 @@ def wavelet_blstm_net_v15(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_time1d_1')
+            name="convblock_time1d_1",
+        )
 
         outputs_time = layers.conv1d_prebn_block(
             outputs_time,
@@ -1875,7 +1886,8 @@ def wavelet_blstm_net_v15(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_time1d_2')
+            name="convblock_time1d_2",
+        )
 
         outputs_time = layers.conv1d_prebn_block(
             outputs_time,
@@ -1884,7 +1896,8 @@ def wavelet_blstm_net_v15(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_time1d_3')
+            name="convblock_time1d_3",
+        )
 
         # ----- CWT PATH
 
@@ -1902,7 +1915,8 @@ def wavelet_blstm_net_v15(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         if params[pkeys.USE_RELU]:
             outputs_cwt = tf.nn.relu(outputs_cwt)
@@ -1916,7 +1930,8 @@ def wavelet_blstm_net_v15(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_cwt2d_1')
+            name="convblock_cwt2d_1",
+        )
 
         outputs_cwt = layers.conv2d_prebn_block(
             outputs_cwt,
@@ -1925,10 +1940,11 @@ def wavelet_blstm_net_v15(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_cwt2d_2')
+            name="convblock_cwt2d_2",
+        )
 
         # Flattening for dense part
-        outputs_cwt = layers.sequence_flatten(outputs_cwt, 'flatten')
+        outputs_cwt = layers.sequence_flatten(outputs_cwt, "flatten")
 
         # Concatenate both paths
         outputs = tf.concat([outputs_time, outputs_cwt], axis=-1)
@@ -1944,7 +1960,8 @@ def wavelet_blstm_net_v15(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -1956,7 +1973,8 @@ def wavelet_blstm_net_v15(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -1966,21 +1984,17 @@ def wavelet_blstm_net_v15(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v16(
-        inputs,
-        params,
-        training,
-        name='model_v16'
-):
-    """ conv1D in time, conv1D in cwt, and BLSTM to make a prediction.
+def wavelet_blstm_net_v16(inputs, params, training, name="model_v16"):
+    """conv1D in time, conv1D in cwt, and BLSTM to make a prediction.
 
     Args:
         inputs: (2d tensor) input tensor of shape [batch_size, time_len]
@@ -1988,13 +2002,12 @@ def wavelet_blstm_net_v16(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v16') A name for the network.
     """
-    print('Using model V16 (Time_11 + CWT_13)')
+    print("Using model V16 (Time_11 + CWT_13)")
     with tf.variable_scope(name):
 
         # ------ TIME PATH
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -2006,9 +2019,11 @@ def wavelet_blstm_net_v16(
 
         # BN at input
         outputs_time = layers.batchnorm_layer(
-            inputs_time, 'bn_input',
+            inputs_time,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -2021,7 +2036,8 @@ def wavelet_blstm_net_v16(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_time1d_1')
+            name="convblock_time1d_1",
+        )
 
         outputs_time = layers.conv1d_prebn_block(
             outputs_time,
@@ -2030,7 +2046,8 @@ def wavelet_blstm_net_v16(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_time1d_2')
+            name="convblock_time1d_2",
+        )
 
         outputs_time = layers.conv1d_prebn_block(
             outputs_time,
@@ -2039,7 +2056,8 @@ def wavelet_blstm_net_v16(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_time1d_3')
+            name="convblock_time1d_3",
+        )
 
         # ----- CWT PATH
 
@@ -2057,13 +2075,14 @@ def wavelet_blstm_net_v16(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         if params[pkeys.USE_RELU]:
             outputs_cwt = tf.nn.relu(outputs_cwt)
 
         # Flattening for dense part
-        outputs_cwt = layers.sequence_flatten(outputs_cwt, 'flatten')
+        outputs_cwt = layers.sequence_flatten(outputs_cwt, "flatten")
 
         # Convolutional stage (standard feed-forward)
         outputs_cwt = layers.conv1d_prebn_block(
@@ -2074,7 +2093,8 @@ def wavelet_blstm_net_v16(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_cwt1d_1')
+            name="convblock_cwt1d_1",
+        )
 
         outputs_cwt = layers.conv1d_prebn_block(
             outputs_cwt,
@@ -2083,7 +2103,8 @@ def wavelet_blstm_net_v16(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_cwt1d_2')
+            name="convblock_cwt1d_2",
+        )
 
         # Concatenate both paths
         outputs = tf.concat([outputs_time, outputs_cwt], axis=-1)
@@ -2099,7 +2120,8 @@ def wavelet_blstm_net_v16(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -2111,7 +2133,8 @@ def wavelet_blstm_net_v16(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -2121,21 +2144,17 @@ def wavelet_blstm_net_v16(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v17(
-        inputs,
-        params,
-        training,
-        name='model_v17'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v17(inputs, params, training, name="model_v17"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -2149,11 +2168,10 @@ def wavelet_blstm_net_v17(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v17') A name for the network.
     """
-    print('Using model V17 (cwt with real and imaginary parts directly)')
+    print("Using model V17 (cwt with real and imaginary parts directly)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer_rectangular(
             inputs,
@@ -2169,7 +2187,8 @@ def wavelet_blstm_net_v17(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         if params[pkeys.USE_RELU]:
             outputs = tf.nn.relu(outputs)
@@ -2183,7 +2202,8 @@ def wavelet_blstm_net_v17(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -2192,10 +2212,11 @@ def wavelet_blstm_net_v17(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -2208,7 +2229,8 @@ def wavelet_blstm_net_v17(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -2220,7 +2242,8 @@ def wavelet_blstm_net_v17(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -2230,20 +2253,16 @@ def wavelet_blstm_net_v17(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v18(
-        inputs,
-        params,
-        training,
-        name='model_v18'
-):
-    """ conv1D in time, conv2D in cwt, and BLSTM to make a prediction.
+def wavelet_blstm_net_v18(inputs, params, training, name="model_v18"):
+    """conv1D in time, conv2D in cwt, and BLSTM to make a prediction.
 
     Args:
         inputs: (2d tensor) input tensor of shape [batch_size, time_len]
@@ -2251,13 +2270,12 @@ def wavelet_blstm_net_v18(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v18') A name for the network.
     """
-    print('Using model V18 (Time_11 + CWT_17)')
+    print("Using model V18 (Time_11 + CWT_17)")
     with tf.variable_scope(name):
 
         # ------ TIME PATH
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -2269,9 +2287,11 @@ def wavelet_blstm_net_v18(
 
         # BN at input
         outputs_time = layers.batchnorm_layer(
-            inputs_time, 'bn_input',
+            inputs_time,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -2284,7 +2304,8 @@ def wavelet_blstm_net_v18(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_time1d_1')
+            name="convblock_time1d_1",
+        )
 
         outputs_time = layers.conv1d_prebn_block(
             outputs_time,
@@ -2293,7 +2314,8 @@ def wavelet_blstm_net_v18(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_time1d_2')
+            name="convblock_time1d_2",
+        )
 
         outputs_time = layers.conv1d_prebn_block(
             outputs_time,
@@ -2302,7 +2324,8 @@ def wavelet_blstm_net_v18(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_time1d_3')
+            name="convblock_time1d_3",
+        )
 
         # ----- CWT PATH
 
@@ -2320,7 +2343,8 @@ def wavelet_blstm_net_v18(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         if params[pkeys.USE_RELU]:
             outputs_cwt = tf.nn.relu(outputs_cwt)
@@ -2334,7 +2358,8 @@ def wavelet_blstm_net_v18(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_cwt2d_1')
+            name="convblock_cwt2d_1",
+        )
 
         outputs_cwt = layers.conv2d_prebn_block(
             outputs_cwt,
@@ -2343,10 +2368,11 @@ def wavelet_blstm_net_v18(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_cwt2d_2')
+            name="convblock_cwt2d_2",
+        )
 
         # Flattening for dense part
-        outputs_cwt = layers.sequence_flatten(outputs_cwt, 'flatten')
+        outputs_cwt = layers.sequence_flatten(outputs_cwt, "flatten")
 
         # Concatenate both paths
         outputs = tf.concat([outputs_time, outputs_cwt], axis=-1)
@@ -2362,7 +2388,8 @@ def wavelet_blstm_net_v18(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -2374,7 +2401,8 @@ def wavelet_blstm_net_v18(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -2384,21 +2412,17 @@ def wavelet_blstm_net_v18(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v19(
-        inputs,
-        params,
-        training,
-        name='model_v19'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v19(inputs, params, training, name="model_v19"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -2412,11 +2436,10 @@ def wavelet_blstm_net_v19(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v19') A name for the network.
     """
-    print('Using model V19 (general cwt)')
+    print("Using model V19 (general cwt)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer_general(
             inputs,
@@ -2435,7 +2458,8 @@ def wavelet_blstm_net_v19(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         # Convolutional stage (standard feed-forward)
         outputs = layers.conv2d_prebn_block(
@@ -2446,7 +2470,8 @@ def wavelet_blstm_net_v19(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -2455,10 +2480,11 @@ def wavelet_blstm_net_v19(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -2471,7 +2497,8 @@ def wavelet_blstm_net_v19(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -2483,7 +2510,8 @@ def wavelet_blstm_net_v19(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -2493,26 +2521,20 @@ def wavelet_blstm_net_v19(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
-        other_outputs_dict = {
-            'last_hidden': outputs
-        }
+        other_outputs_dict = {"last_hidden": outputs}
 
         return logits, probabilities, other_outputs_dict
 
 
-def wavelet_blstm_net_v20_concat(
-        inputs,
-        params,
-        training,
-        name='model_v20_concat'
-):
-    """ conv 1D and BLSTM to make a prediction.
+def wavelet_blstm_net_v20_concat(inputs, params, training, name="model_v20_concat"):
+    """conv 1D and BLSTM to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -2525,17 +2547,17 @@ def wavelet_blstm_net_v20_concat(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v20_concat') A name for the network.
     """
-    print('Using model V20_CONCAT (Time-Domain + sigma band)')
+    print("Using model V20_CONCAT (Time-Domain + sigma band)")
     with tf.variable_scope(name):
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         # compute sigma band
         inputs_sigma = spectrum.compute_sigma_band(
             inputs,
             fs=params[pkeys.FS],
             ntaps=params[pkeys.SIGMA_FILTER_NTAPS],
-            border_crop=border_crop)
+            border_crop=border_crop,
+        )
 
         start_crop = border_crop
         if border_crop <= 0:
@@ -2552,9 +2574,11 @@ def wavelet_blstm_net_v20_concat(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -2567,7 +2591,8 @@ def wavelet_blstm_net_v20_concat(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -2576,7 +2601,8 @@ def wavelet_blstm_net_v20_concat(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -2585,7 +2611,8 @@ def wavelet_blstm_net_v20_concat(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -2598,7 +2625,8 @@ def wavelet_blstm_net_v20_concat(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -2610,7 +2638,8 @@ def wavelet_blstm_net_v20_concat(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -2620,21 +2649,17 @@ def wavelet_blstm_net_v20_concat(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v20_indep(
-        inputs,
-        params,
-        training,
-        name='model_v20_indep'
-):
-    """ conv 1D and BLSTM to make a prediction.
+def wavelet_blstm_net_v20_indep(inputs, params, training, name="model_v20_indep"):
+    """conv 1D and BLSTM to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -2647,17 +2672,17 @@ def wavelet_blstm_net_v20_indep(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v20_indep') A name for the network.
     """
-    print('Using model V20_INDEP (Time-Domain + sigma band)')
+    print("Using model V20_INDEP (Time-Domain + sigma band)")
     with tf.variable_scope(name):
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         # compute sigma band
         inputs_sigma = spectrum.compute_sigma_band(
             inputs,
             fs=params[pkeys.FS],
             ntaps=params[pkeys.SIGMA_FILTER_NTAPS],
-            border_crop=border_crop)
+            border_crop=border_crop,
+        )
 
         start_crop = border_crop
         if border_crop <= 0:
@@ -2670,12 +2695,14 @@ def wavelet_blstm_net_v20_indep(
 
         # Each channel is processed independently
 
-        with tf.variable_scope('tower_original'):
+        with tf.variable_scope("tower_original"):
             # BN at input
             outputs_original = layers.batchnorm_layer(
-                inputs_original, 'bn_input',
+                inputs_original,
+                "bn_input",
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
-                training=training)
+                training=training,
+            )
 
             # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -2688,7 +2715,8 @@ def wavelet_blstm_net_v20_indep(
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
                 downsampling=params[pkeys.CONV_DOWNSAMPLING],
                 kernel_init=tf.initializers.he_normal(),
-                name='convblock_1d_1')
+                name="convblock_1d_1",
+            )
 
             outputs_original = layers.conv1d_prebn_block(
                 outputs_original,
@@ -2697,7 +2725,8 @@ def wavelet_blstm_net_v20_indep(
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
                 downsampling=params[pkeys.CONV_DOWNSAMPLING],
                 kernel_init=tf.initializers.he_normal(),
-                name='convblock_1d_2')
+                name="convblock_1d_2",
+            )
 
             outputs_original = layers.conv1d_prebn_block(
                 outputs_original,
@@ -2706,14 +2735,17 @@ def wavelet_blstm_net_v20_indep(
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
                 downsampling=params[pkeys.CONV_DOWNSAMPLING],
                 kernel_init=tf.initializers.he_normal(),
-                name='convblock_1d_3')
+                name="convblock_1d_3",
+            )
 
-        with tf.variable_scope('tower_sigma'):
+        with tf.variable_scope("tower_sigma"):
             # BN at input
             outputs_sigma = layers.batchnorm_layer(
-                inputs_sigma, 'bn_input',
+                inputs_sigma,
+                "bn_input",
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
-                training=training)
+                training=training,
+            )
 
             # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -2726,7 +2758,8 @@ def wavelet_blstm_net_v20_indep(
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
                 downsampling=params[pkeys.CONV_DOWNSAMPLING],
                 kernel_init=tf.initializers.he_normal(),
-                name='convblock_1d_1')
+                name="convblock_1d_1",
+            )
 
             outputs_sigma = layers.conv1d_prebn_block(
                 outputs_sigma,
@@ -2735,7 +2768,8 @@ def wavelet_blstm_net_v20_indep(
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
                 downsampling=params[pkeys.CONV_DOWNSAMPLING],
                 kernel_init=tf.initializers.he_normal(),
-                name='convblock_1d_2')
+                name="convblock_1d_2",
+            )
 
             outputs_sigma = layers.conv1d_prebn_block(
                 outputs_sigma,
@@ -2744,7 +2778,8 @@ def wavelet_blstm_net_v20_indep(
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
                 downsampling=params[pkeys.CONV_DOWNSAMPLING],
                 kernel_init=tf.initializers.he_normal(),
-                name='convblock_1d_3')
+                name="convblock_1d_3",
+            )
 
         # Concatenate both paths
         outputs = tf.concat([outputs_original, outputs_sigma], axis=-1)
@@ -2760,7 +2795,8 @@ def wavelet_blstm_net_v20_indep(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -2772,7 +2808,8 @@ def wavelet_blstm_net_v20_indep(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -2782,21 +2819,17 @@ def wavelet_blstm_net_v20_indep(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v21(
-        inputs,
-        params,
-        training,
-        name='model_v21'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v21(inputs, params, training, name="model_v21"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -2810,13 +2843,12 @@ def wavelet_blstm_net_v21(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v21') A name for the network.
     """
-    print('Using model V21 (timev11 + general cwt v19)')
+    print("Using model V21 (timev11 + general cwt v19)")
     with tf.variable_scope(name):
 
         # ------ TIME PATH
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -2828,9 +2860,11 @@ def wavelet_blstm_net_v21(
 
         # BN at input
         outputs_time = layers.batchnorm_layer(
-            inputs_time, 'bn_input',
+            inputs_time,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -2843,7 +2877,8 @@ def wavelet_blstm_net_v21(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_time1d_1')
+            name="convblock_time1d_1",
+        )
 
         outputs_time = layers.conv1d_prebn_block(
             outputs_time,
@@ -2852,7 +2887,8 @@ def wavelet_blstm_net_v21(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_time1d_2')
+            name="convblock_time1d_2",
+        )
 
         outputs_time = layers.conv1d_prebn_block(
             outputs_time,
@@ -2861,7 +2897,8 @@ def wavelet_blstm_net_v21(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_time1d_3')
+            name="convblock_time1d_3",
+        )
 
         # ----- CWT PATH
 
@@ -2882,7 +2919,8 @@ def wavelet_blstm_net_v21(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         # Convolutional stage (standard feed-forward)
         outputs_cwt = layers.conv2d_prebn_block(
@@ -2893,7 +2931,8 @@ def wavelet_blstm_net_v21(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_cwt2d_1')
+            name="convblock_cwt2d_1",
+        )
 
         outputs_cwt = layers.conv2d_prebn_block(
             outputs_cwt,
@@ -2902,22 +2941,27 @@ def wavelet_blstm_net_v21(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_cwt2d_2')
+            name="convblock_cwt2d_2",
+        )
 
         # Flattening for dense part
-        outputs_cwt = layers.sequence_flatten(outputs_cwt, 'flatten')
+        outputs_cwt = layers.sequence_flatten(outputs_cwt, "flatten")
 
         # Dropout before concatenation
         outputs_time = layers.dropout_layer(
-            outputs_time, 'drop_time',
+            outputs_time,
+            "drop_time",
             drop_rate=params[pkeys.DROP_RATE_BEFORE_LSTM],
             dropout=params[pkeys.TYPE_DROPOUT],
-            training=training)
+            training=training,
+        )
         outputs_cwt = layers.dropout_layer(
-            outputs_cwt, 'drop_cwt',
+            outputs_cwt,
+            "drop_cwt",
             drop_rate=params[pkeys.DROP_RATE_BEFORE_LSTM],
             dropout=params[pkeys.TYPE_DROPOUT],
-            training=training)
+            training=training,
+        )
 
         # Concatenate both paths
         outputs = tf.concat([outputs_time, outputs_cwt], axis=-1)
@@ -2933,7 +2977,8 @@ def wavelet_blstm_net_v21(
             drop_rate_first_lstm=None,
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -2945,7 +2990,8 @@ def wavelet_blstm_net_v21(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -2955,20 +3001,16 @@ def wavelet_blstm_net_v21(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v22(
-        inputs,
-        params,
-        training,
-        name='model_v22'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v22(inputs, params, training, name="model_v22"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -2982,11 +3024,10 @@ def wavelet_blstm_net_v22(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v22') A name for the network.
     """
-    print('Using model V22 (general cwt with 8 indep branches)')
+    print("Using model V22 (general cwt with 8 indep branches)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer_general(
             inputs,
@@ -3005,7 +3046,8 @@ def wavelet_blstm_net_v22(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         # Output sequence has shape [batch_size, time_len, n_scales, channels]
         # Unstack scales
@@ -3014,7 +3056,7 @@ def wavelet_blstm_net_v22(
 
         outputs_after_conv = []
         for i, single_output in enumerate(outputs_unstack):
-            with tf.variable_scope('scale_%d' % i):
+            with tf.variable_scope("scale_%d" % i):
                 # Convolutional stage (standard feed-forward)
                 single_output = layers.conv1d_prebn_block(
                     single_output,
@@ -3024,7 +3066,8 @@ def wavelet_blstm_net_v22(
                     batchnorm=params[pkeys.TYPE_BATCHNORM],
                     downsampling=params[pkeys.CONV_DOWNSAMPLING],
                     kernel_init=tf.initializers.he_normal(),
-                    name='convblock_1')
+                    name="convblock_1",
+                )
 
                 single_output = layers.conv1d_prebn_block(
                     single_output,
@@ -3033,7 +3076,8 @@ def wavelet_blstm_net_v22(
                     batchnorm=params[pkeys.TYPE_BATCHNORM],
                     downsampling=params[pkeys.CONV_DOWNSAMPLING],
                     kernel_init=tf.initializers.he_normal(),
-                    name='convblock_2')
+                    name="convblock_2",
+                )
 
                 single_output = layers.conv1d_prebn_block(
                     single_output,
@@ -3042,14 +3086,17 @@ def wavelet_blstm_net_v22(
                     batchnorm=params[pkeys.TYPE_BATCHNORM],
                     downsampling=params[pkeys.CONV_DOWNSAMPLING],
                     kernel_init=tf.initializers.he_normal(),
-                    name='convblock_3')
+                    name="convblock_3",
+                )
 
                 # Dropout before concatenation  (ensures same drop across scales)
                 single_output = layers.dropout_layer(
-                    single_output, 'drop',
+                    single_output,
+                    "drop",
                     drop_rate=params[pkeys.DROP_RATE_BEFORE_LSTM],
                     dropout=params[pkeys.TYPE_DROPOUT],
-                    training=training)
+                    training=training,
+                )
 
             outputs_after_conv.append(single_output)
 
@@ -3067,7 +3114,8 @@ def wavelet_blstm_net_v22(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -3079,7 +3127,8 @@ def wavelet_blstm_net_v22(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -3089,20 +3138,16 @@ def wavelet_blstm_net_v22(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v23(
-        inputs,
-        params,
-        training,
-        name='model_v23'
-):
-    """ conv 1D and BLSTM to make a prediction.
+def wavelet_blstm_net_v23(inputs, params, training, name="model_v23"):
+    """conv 1D and BLSTM to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -3115,11 +3160,10 @@ def wavelet_blstm_net_v23(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v23') A name for the network.
     """
-    print('Using model V23 (Time-Domain)')
+    print("Using model V23 (Time-Domain)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -3131,9 +3175,11 @@ def wavelet_blstm_net_v23(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -3146,7 +3192,8 @@ def wavelet_blstm_net_v23(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -3155,7 +3202,8 @@ def wavelet_blstm_net_v23(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -3164,7 +3212,8 @@ def wavelet_blstm_net_v23(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -3177,7 +3226,8 @@ def wavelet_blstm_net_v23(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.OUTPUT_LSTM_UNITS] > 0:
             # Smaller LSTM layer for decoding predictions
@@ -3188,7 +3238,8 @@ def wavelet_blstm_net_v23(
                 dropout=params[pkeys.TYPE_DROPOUT],
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
-                name='lstm_out')
+                name="lstm_out",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_fc_layer(
@@ -3198,21 +3249,17 @@ def wavelet_blstm_net_v23(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v24(
-        inputs,
-        params,
-        training,
-        name='model_v24'
-):
-    """ conv 1D and BLSTM to make a prediction.
+def wavelet_blstm_net_v24(inputs, params, training, name="model_v24"):
+    """conv 1D and BLSTM to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -3225,11 +3272,10 @@ def wavelet_blstm_net_v24(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v24') A name for the network.
     """
-    print('Using model V24 (Time-Domain with UpConv output)')
+    print("Using model V24 (Time-Domain with UpConv output)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -3241,9 +3287,11 @@ def wavelet_blstm_net_v24(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -3256,7 +3304,8 @@ def wavelet_blstm_net_v24(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -3265,7 +3314,8 @@ def wavelet_blstm_net_v24(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -3274,7 +3324,8 @@ def wavelet_blstm_net_v24(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -3287,13 +3338,16 @@ def wavelet_blstm_net_v24(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         outputs = layers.dropout_layer(
-            outputs, 'drop_after_lstm',
+            outputs,
+            "drop_after_lstm",
             drop_rate=params[pkeys.DROP_RATE_HIDDEN],
             dropout=params[pkeys.TYPE_DROPOUT],
-            training=training)
+            training=training,
+        )
 
         # Upconvolutions to recover resolution
         outputs = layers.upconv1d_prebn(
@@ -3303,7 +3357,8 @@ def wavelet_blstm_net_v24(
             training=training,
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             kernel_init=tf.initializers.he_normal(),
-            name='upconv_1d_1')
+            name="upconv_1d_1",
+        )
 
         outputs = layers.upconv1d_prebn(
             outputs,
@@ -3312,7 +3367,8 @@ def wavelet_blstm_net_v24(
             training=training,
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             kernel_init=tf.initializers.he_normal(),
-            name='upconv_1d_2')
+            name="upconv_1d_2",
+        )
 
         outputs = layers.upconv1d_prebn(
             outputs,
@@ -3321,7 +3377,8 @@ def wavelet_blstm_net_v24(
             training=training,
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             kernel_init=tf.initializers.he_normal(),
-            name='upconv_1d_3')
+            name="upconv_1d_3",
+        )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -3331,22 +3388,18 @@ def wavelet_blstm_net_v24(
             # drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v25(
-        inputs,
-        params,
-        training,
-        name='model_v25'
-):
-    """ BLSTM with UNET conv1d architecture to make a prediction.
+def wavelet_blstm_net_v25(inputs, params, training, name="model_v25"):
+    """BLSTM with UNET conv1d architecture to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -3360,11 +3413,10 @@ def wavelet_blstm_net_v25(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v25') A name for the network.
     """
-    print('Using model V25 (Time-Domain Unet-LSTM)')
+    print("Using model V25 (Time-Domain Unet-LSTM)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -3376,9 +3428,11 @@ def wavelet_blstm_net_v25(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
         print(outputs)
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
@@ -3390,7 +3444,7 @@ def wavelet_blstm_net_v25(
         outputs_from_down_list = []
         filters_from_down_list = []
         for i in range(n_down):
-            this_factor = 2 ** i
+            this_factor = 2**i
             filters = params[pkeys.UNET_TIME_INITIAL_CONV_FILTERS] * this_factor
             filters_from_down_list.append(filters)
             outputs, outputs_prepool = layers.conv1d_prebn_block_unet_down(
@@ -3401,10 +3455,11 @@ def wavelet_blstm_net_v25(
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
                 downsampling=params[pkeys.CONV_DOWNSAMPLING],
                 kernel_init=tf.initializers.he_normal(),
-                name='down_conv1d_%d' % i)
+                name="down_conv1d_%d" % i,
+            )
             outputs_from_down_list.append(outputs_prepool)
-            print('output before pool', outputs_prepool)
-            print('output after pool', outputs)
+            print("output before pool", outputs_prepool)
+            print("output after pool", outputs)
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -3417,14 +3472,15 @@ def wavelet_blstm_net_v25(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
-        print('outputs_lstm', outputs)
+            name="multi_layer_blstm",
+        )
+        print("outputs_lstm", outputs)
 
         for i in range(n_up):
             outputs_skip_prepool = outputs_from_down_list[-(i + 1)]
             filters = filters_from_down_list[-(i + 1)]
 
-            print('outputs_skip_prepool', outputs_skip_prepool)
+            print("outputs_skip_prepool", outputs_skip_prepool)
 
             outputs = layers.conv1d_prebn_block_unet_up(
                 outputs,
@@ -3434,8 +3490,9 @@ def wavelet_blstm_net_v25(
                 n_layers=params[pkeys.UNET_TIME_N_CONV_UP],
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
                 kernel_init=tf.initializers.he_normal(),
-                name='up_conv1d_%d' % i)
-            print('output up', outputs)
+                name="up_conv1d_%d" % i,
+            )
+            print("output up", outputs)
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -3445,22 +3502,18 @@ def wavelet_blstm_net_v25(
             # drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v11_skip(
-        inputs,
-        params,
-        training,
-        name='model_v11_skip'
-):
-    """ conv 1D and BLSTM to make a prediction.
+def wavelet_blstm_net_v11_skip(inputs, params, training, name="model_v11_skip"):
+    """conv 1D and BLSTM to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -3473,11 +3526,10 @@ def wavelet_blstm_net_v11_skip(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v11_skip') A name for the network.
     """
-    print('Using model V11 Skip (Time-Domain + skip connection)')
+    print("Using model V11 Skip (Time-Domain + skip connection)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -3489,9 +3541,11 @@ def wavelet_blstm_net_v11_skip(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -3504,7 +3558,8 @@ def wavelet_blstm_net_v11_skip(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -3513,7 +3568,8 @@ def wavelet_blstm_net_v11_skip(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs_conv = layers.conv1d_prebn_block(
             outputs,
@@ -3522,7 +3578,8 @@ def wavelet_blstm_net_v11_skip(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs_lstm = layers.multilayer_lstm_block(
@@ -3535,7 +3592,8 @@ def wavelet_blstm_net_v11_skip(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         # Skip connection
         outputs = tf.concat([outputs_lstm, outputs_conv], axis=-1)
@@ -3550,7 +3608,8 @@ def wavelet_blstm_net_v11_skip(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -3560,22 +3619,18 @@ def wavelet_blstm_net_v11_skip(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v19_skip(
-        inputs,
-        params,
-        training,
-        name='model_v19_skip'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v19_skip(inputs, params, training, name="model_v19_skip"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -3589,11 +3644,10 @@ def wavelet_blstm_net_v19_skip(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v19_skip') A name for the network.
     """
-    print('Using model V19 Skip (general cwt + skip connection)')
+    print("Using model V19 Skip (general cwt + skip connection)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer_general(
             inputs,
@@ -3612,7 +3666,8 @@ def wavelet_blstm_net_v19_skip(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         # Convolutional stage (standard feed-forward)
         outputs = layers.conv2d_prebn_block(
@@ -3623,7 +3678,8 @@ def wavelet_blstm_net_v19_skip(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -3632,10 +3688,11 @@ def wavelet_blstm_net_v19_skip(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Flattening for dense part
-        outputs_conv = layers.sequence_flatten(outputs, 'flatten')
+        outputs_conv = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs_lstm = layers.multilayer_lstm_block(
@@ -3648,7 +3705,8 @@ def wavelet_blstm_net_v19_skip(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         # Skip connection
         outputs = tf.concat([outputs_lstm, outputs_conv], axis=-1)
@@ -3663,7 +3721,8 @@ def wavelet_blstm_net_v19_skip(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -3673,22 +3732,18 @@ def wavelet_blstm_net_v19_skip(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v19_skip2(
-        inputs,
-        params,
-        training,
-        name='model_v19_skip2'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v19_skip2(inputs, params, training, name="model_v19_skip2"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -3702,11 +3757,10 @@ def wavelet_blstm_net_v19_skip2(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v19_skip2') A name for the network.
     """
-    print('Using model V19 Skip2 (general cwt + skip connection v2)')
+    print("Using model V19 Skip2 (general cwt + skip connection v2)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer_general(
             inputs,
@@ -3725,7 +3779,8 @@ def wavelet_blstm_net_v19_skip2(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         cwt_skip, _ = layers.cmorlet_layer_general(
             inputs,
@@ -3744,10 +3799,12 @@ def wavelet_blstm_net_v19_skip2(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum_skip')
+            name="spectrum_skip",
+        )
         cwt_skip = tf.layers.average_pooling2d(
-            inputs=cwt_skip, pool_size=(8, 1), strides=(8, 1))
-        cwt_skip = layers.sequence_flatten(cwt_skip, 'cwt_skip_flatten')
+            inputs=cwt_skip, pool_size=(8, 1), strides=(8, 1)
+        )
+        cwt_skip = layers.sequence_flatten(cwt_skip, "cwt_skip_flatten")
 
         # Convolutional stage (standard feed-forward)
         outputs = layers.conv2d_prebn_block(
@@ -3758,7 +3815,8 @@ def wavelet_blstm_net_v19_skip2(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -3767,10 +3825,11 @@ def wavelet_blstm_net_v19_skip2(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Flattening for dense part
-        outputs_conv = layers.sequence_flatten(outputs, 'flatten')
+        outputs_conv = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs_lstm = layers.multilayer_lstm_block(
@@ -3783,7 +3842,8 @@ def wavelet_blstm_net_v19_skip2(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         # Skip connection
         outputs = tf.concat([outputs_lstm, outputs_conv, cwt_skip], axis=-1)
@@ -3798,7 +3858,8 @@ def wavelet_blstm_net_v19_skip2(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -3808,22 +3869,18 @@ def wavelet_blstm_net_v19_skip2(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v19_skip3(
-        inputs,
-        params,
-        training,
-        name='model_v19_skip3'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v19_skip3(inputs, params, training, name="model_v19_skip3"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -3837,11 +3894,10 @@ def wavelet_blstm_net_v19_skip3(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v19_skip3') A name for the network.
     """
-    print('Using model V19 Skip3 (general cwt + skip connection v3)')
+    print("Using model V19 Skip3 (general cwt + skip connection v3)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer_general(
             inputs,
@@ -3860,7 +3916,8 @@ def wavelet_blstm_net_v19_skip3(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         cwt_skip, _ = layers.cmorlet_layer_general(
             inputs,
@@ -3879,10 +3936,12 @@ def wavelet_blstm_net_v19_skip3(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum_skip')
+            name="spectrum_skip",
+        )
         cwt_skip = tf.layers.average_pooling2d(
-            inputs=cwt_skip, pool_size=(8, 1), strides=(8, 1))
-        cwt_skip = layers.sequence_flatten(cwt_skip, 'cwt_skip_flatten')
+            inputs=cwt_skip, pool_size=(8, 1), strides=(8, 1)
+        )
+        cwt_skip = layers.sequence_flatten(cwt_skip, "cwt_skip_flatten")
 
         # Convolutional stage (standard feed-forward)
         outputs = layers.conv2d_prebn_block(
@@ -3893,7 +3952,8 @@ def wavelet_blstm_net_v19_skip3(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -3902,10 +3962,11 @@ def wavelet_blstm_net_v19_skip3(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Flattening for dense part
-        outputs_conv = layers.sequence_flatten(outputs, 'flatten')
+        outputs_conv = layers.sequence_flatten(outputs, "flatten")
 
         # Skip connection at the input of lstm (direct access to spectrogram)
         outputs_conv = tf.concat([outputs_conv, cwt_skip], axis=-1)
@@ -3921,7 +3982,8 @@ def wavelet_blstm_net_v19_skip3(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         # Skip connection
         outputs = tf.concat([outputs_lstm, outputs_conv, cwt_skip], axis=-1)
@@ -3936,7 +3998,8 @@ def wavelet_blstm_net_v19_skip3(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -3946,22 +4009,18 @@ def wavelet_blstm_net_v19_skip3(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v26(
-        inputs,
-        params,
-        training,
-        name='model_v26'
-):
-    """ Experimental
+def wavelet_blstm_net_v26(inputs, params, training, name="model_v26"):
+    """Experimental
 
     Args:
         inputs: (2d tensor) input tensor of shape [batch_size, time_len]
@@ -3969,11 +4028,10 @@ def wavelet_blstm_net_v26(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v26') A name for the network.
     """
-    print('Using model V26 (experimental)')
+    print("Using model V26 (experimental)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer_general(
             inputs,
@@ -3992,12 +4050,12 @@ def wavelet_blstm_net_v26(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         cwt_skip = outputs[..., 2:3]
-        cwt_skip = tf.layers.average_pooling2d(
-            inputs=cwt_skip, pool_size=4, strides=4)
-        cwt_skip = layers.sequence_flatten(cwt_skip, 'cwt_skip_flatten')
+        cwt_skip = tf.layers.average_pooling2d(inputs=cwt_skip, pool_size=4, strides=4)
+        cwt_skip = layers.sequence_flatten(cwt_skip, "cwt_skip_flatten")
 
         outputs = outputs[..., :2]
 
@@ -4010,7 +4068,8 @@ def wavelet_blstm_net_v26(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -4019,10 +4078,11 @@ def wavelet_blstm_net_v26(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Flattening for dense part
-        outputs_conv = layers.sequence_flatten(outputs, 'flatten')
+        outputs_conv = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         # Skip connection at the input of lstm (direct access to magnitude)
@@ -4036,7 +4096,8 @@ def wavelet_blstm_net_v26(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         # Two branches
         outputs_lstm = layers.sequence_fc_layer(
@@ -4047,7 +4108,8 @@ def wavelet_blstm_net_v26(
             drop_rate=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
             activation=tf.nn.relu,
-            name='fc_1_lstm')
+            name="fc_1_lstm",
+        )
         outputs_conv = layers.sequence_fc_layer(
             tf.concat([outputs_conv, cwt_skip], axis=-1),
             params[pkeys.FC_UNITS],
@@ -4056,7 +4118,8 @@ def wavelet_blstm_net_v26(
             drop_rate=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
             activation=tf.nn.relu,
-            name='fc_1_conv')
+            name="fc_1_conv",
+        )
 
         # Skip connection
         outputs = tf.concat([outputs_lstm, outputs_conv], axis=-1)
@@ -4069,22 +4132,18 @@ def wavelet_blstm_net_v26(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v27(
-        inputs,
-        params,
-        training,
-        name='model_v27'
-):
-    """ Experimental
+def wavelet_blstm_net_v27(inputs, params, training, name="model_v27"):
+    """Experimental
 
     Args:
         inputs: (2d tensor) input tensor of shape [batch_size, time_len]
@@ -4092,11 +4151,10 @@ def wavelet_blstm_net_v27(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v27') A name for the network.
     """
-    print('Using model V27 (experimental)')
+    print("Using model V27 (experimental)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         # CWt skip
         outputs, cwt_prebn = layers.cmorlet_layer_general(
@@ -4116,10 +4174,10 @@ def wavelet_blstm_net_v27(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
-        cwt_skip = tf.layers.average_pooling2d(
-            inputs=outputs, pool_size=4, strides=4)
-        cwt_skip = layers.sequence_flatten(cwt_skip, 'cwt_skip_flatten')
+            name="spectrum",
+        )
+        cwt_skip = tf.layers.average_pooling2d(inputs=outputs, pool_size=4, strides=4)
+        cwt_skip = layers.sequence_flatten(cwt_skip, "cwt_skip_flatten")
 
         # Convolutional stage (standard feed-forward)
         start_crop = border_crop
@@ -4133,9 +4191,11 @@ def wavelet_blstm_net_v27(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
         outputs = layers.conv1d_prebn_block(
@@ -4146,7 +4206,8 @@ def wavelet_blstm_net_v27(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -4155,7 +4216,8 @@ def wavelet_blstm_net_v27(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs_conv = layers.conv1d_prebn_block(
             outputs,
@@ -4164,7 +4226,8 @@ def wavelet_blstm_net_v27(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         # Skip connection at the input of lstm (direct access to magnitude)
@@ -4178,7 +4241,8 @@ def wavelet_blstm_net_v27(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         # Two branches
         outputs_lstm = layers.sequence_fc_layer(
@@ -4189,7 +4253,8 @@ def wavelet_blstm_net_v27(
             drop_rate=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
             activation=tf.nn.relu,
-            name='fc_1_lstm')
+            name="fc_1_lstm",
+        )
         outputs_conv = layers.sequence_fc_layer(
             tf.concat([outputs_conv, cwt_skip], axis=-1),
             params[pkeys.FC_UNITS],
@@ -4198,7 +4263,8 @@ def wavelet_blstm_net_v27(
             drop_rate=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
             activation=tf.nn.relu,
-            name='fc_1_conv')
+            name="fc_1_conv",
+        )
 
         # Skip connection
         outputs = tf.concat([outputs_lstm, outputs_conv], axis=-1)
@@ -4211,22 +4277,18 @@ def wavelet_blstm_net_v27(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v28(
-        inputs,
-        params,
-        training,
-        name='model_v28'
-):
-    """ Experimental
+def wavelet_blstm_net_v28(inputs, params, training, name="model_v28"):
+    """Experimental
 
     Args:
         inputs: (2d tensor) input tensor of shape [batch_size, time_len]
@@ -4234,11 +4296,10 @@ def wavelet_blstm_net_v28(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v28') A name for the network.
     """
-    print('Using model V28 (experimental)')
+    print("Using model V28 (experimental)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         # CWt skip
         outputs_cwt, cwt_prebn = layers.cmorlet_layer_general(
@@ -4258,15 +4319,18 @@ def wavelet_blstm_net_v28(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         cwt_skip = tf.layers.average_pooling2d(
-            inputs=outputs_cwt, pool_size=4, strides=4)
-        cwt_skip = layers.sequence_flatten(cwt_skip, 'cwt_skip_flatten')
+            inputs=outputs_cwt, pool_size=4, strides=4
+        )
+        cwt_skip = layers.sequence_flatten(cwt_skip, "cwt_skip_flatten")
 
         outputs_cwt = tf.layers.average_pooling2d(
-            inputs=outputs_cwt, pool_size=(4, 1), strides=(4, 1))
-        outputs_cwt = layers.sequence_flatten(outputs_cwt, 'outputs_cwt_flatten')
+            inputs=outputs_cwt, pool_size=(4, 1), strides=(4, 1)
+        )
+        outputs_cwt = layers.sequence_flatten(outputs_cwt, "outputs_cwt_flatten")
 
         # Convolutional stage (standard feed-forward)
         start_crop = border_crop
@@ -4280,9 +4344,11 @@ def wavelet_blstm_net_v28(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
         outputs = layers.conv1d_prebn_block(
@@ -4293,7 +4359,8 @@ def wavelet_blstm_net_v28(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -4302,7 +4369,8 @@ def wavelet_blstm_net_v28(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs_conv = layers.conv1d_prebn_block(
             outputs,
@@ -4311,7 +4379,8 @@ def wavelet_blstm_net_v28(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         # Skip connection at the input of lstm (direct access to magnitude)
@@ -4325,7 +4394,8 @@ def wavelet_blstm_net_v28(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         # Three branches
         outputs_lstm = layers.sequence_fc_layer(
@@ -4336,7 +4406,8 @@ def wavelet_blstm_net_v28(
             drop_rate=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
             activation=tf.nn.relu,
-            name='fc_1_lstm')
+            name="fc_1_lstm",
+        )
         outputs_conv = layers.sequence_fc_layer(
             tf.concat([outputs_conv, cwt_skip], axis=-1),
             params[pkeys.FC_UNITS],
@@ -4345,7 +4416,8 @@ def wavelet_blstm_net_v28(
             drop_rate=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
             activation=tf.nn.relu,
-            name='fc_1_conv')
+            name="fc_1_conv",
+        )
         outputs_cwt = layers.sequence_fc_layer(
             outputs_cwt,
             params[pkeys.FC_UNITS],
@@ -4354,7 +4426,8 @@ def wavelet_blstm_net_v28(
             drop_rate=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
             activation=tf.nn.relu,
-            name='fc_1_cwt')
+            name="fc_1_cwt",
+        )
 
         # Fusion
         outputs = tf.concat([outputs_lstm, outputs_conv, outputs_cwt], axis=-1)
@@ -4367,22 +4440,18 @@ def wavelet_blstm_net_v28(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v29(
-        inputs,
-        params,
-        training,
-        name='model_v29'
-):
-    """ Experimental
+def wavelet_blstm_net_v29(inputs, params, training, name="model_v29"):
+    """Experimental
 
     Args:
         inputs: (2d tensor) input tensor of shape [batch_size, time_len]
@@ -4390,11 +4459,10 @@ def wavelet_blstm_net_v29(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v29') A name for the network.
     """
-    print('Using model V29 (experimental)')
+    print("Using model V29 (experimental)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         # CWt skip
         outputs_cwt, cwt_prebn = layers.cmorlet_layer_general(
@@ -4414,16 +4482,18 @@ def wavelet_blstm_net_v29(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         cwt_skip = tf.layers.average_pooling2d(
-            inputs=outputs_cwt, pool_size=4, strides=4)
-        cwt_skip = layers.sequence_flatten(cwt_skip, 'cwt_skip_flatten')
+            inputs=outputs_cwt, pool_size=4, strides=4
+        )
+        cwt_skip = layers.sequence_flatten(cwt_skip, "cwt_skip_flatten")
 
         outputs_cwt = tf.layers.average_pooling2d(
-            inputs=outputs_cwt, pool_size=(4, 1), strides=(4, 1))
-        outputs_cwt = layers.sequence_flatten(
-            outputs_cwt, 'outputs_cwt_flatten')
+            inputs=outputs_cwt, pool_size=(4, 1), strides=(4, 1)
+        )
+        outputs_cwt = layers.sequence_flatten(outputs_cwt, "outputs_cwt_flatten")
 
         # Convolutional stage (standard feed-forward)
         start_crop = border_crop
@@ -4437,9 +4507,11 @@ def wavelet_blstm_net_v29(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
         outputs = layers.conv1d_prebn_block(
@@ -4450,7 +4522,8 @@ def wavelet_blstm_net_v29(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -4459,7 +4532,8 @@ def wavelet_blstm_net_v29(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs_conv = layers.conv1d_prebn_block(
             outputs,
@@ -4468,7 +4542,8 @@ def wavelet_blstm_net_v29(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         # Skip connection at the input of lstm (direct access to magnitude)
@@ -4482,7 +4557,8 @@ def wavelet_blstm_net_v29(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         # Three branches
         outputs_lstm = layers.sequence_fc_layer(
@@ -4493,7 +4569,8 @@ def wavelet_blstm_net_v29(
             drop_rate=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
             activation=tf.nn.relu,
-            name='fc_1_lstm')
+            name="fc_1_lstm",
+        )
         outputs_conv = layers.sequence_fc_layer(
             tf.concat([outputs_conv, cwt_skip], axis=-1),
             params[pkeys.FC_UNITS],
@@ -4502,7 +4579,8 @@ def wavelet_blstm_net_v29(
             drop_rate=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
             activation=tf.nn.relu,
-            name='fc_1_conv')
+            name="fc_1_conv",
+        )
         outputs_cwt = layers.sequence_fc_layer(
             outputs_cwt,
             params[pkeys.FC_UNITS],
@@ -4511,7 +4589,8 @@ def wavelet_blstm_net_v29(
             drop_rate=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
             activation=tf.nn.relu,
-            name='fc_1_cwt')
+            name="fc_1_cwt",
+        )
 
         # Fusion
         outputs = outputs_lstm + outputs_conv + outputs_cwt
@@ -4524,22 +4603,18 @@ def wavelet_blstm_net_v29(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_30(
-        inputs,
-        params,
-        training,
-        name='model_v30'
-):
-    """ Experimental
+def wavelet_blstm_net_30(inputs, params, training, name="model_v30"):
+    """Experimental
 
     Args:
         inputs: (2d tensor) input tensor of shape [batch_size, time_len]
@@ -4547,11 +4622,10 @@ def wavelet_blstm_net_30(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v30') A name for the network.
     """
-    print('Using model V30 (experimental)')
+    print("Using model V30 (experimental)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         # CWt skip
         outputs_cwt, cwt_prebn = layers.cmorlet_layer_general(
@@ -4571,16 +4645,18 @@ def wavelet_blstm_net_30(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         cwt_skip = tf.layers.average_pooling2d(
-            inputs=outputs_cwt, pool_size=4, strides=4)
-        cwt_skip = layers.sequence_flatten(cwt_skip, 'cwt_skip_flatten')
+            inputs=outputs_cwt, pool_size=4, strides=4
+        )
+        cwt_skip = layers.sequence_flatten(cwt_skip, "cwt_skip_flatten")
 
         outputs_cwt = tf.layers.average_pooling2d(
-            inputs=outputs_cwt, pool_size=(4, 1), strides=(4, 1))
-        outputs_cwt = layers.sequence_flatten(
-            outputs_cwt, 'outputs_cwt_flatten')
+            inputs=outputs_cwt, pool_size=(4, 1), strides=(4, 1)
+        )
+        outputs_cwt = layers.sequence_flatten(outputs_cwt, "outputs_cwt_flatten")
 
         # Convolutional stage (standard feed-forward)
         start_crop = border_crop
@@ -4594,9 +4670,11 @@ def wavelet_blstm_net_30(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
         outputs = layers.conv1d_prebn_block(
@@ -4607,7 +4685,8 @@ def wavelet_blstm_net_30(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -4616,7 +4695,8 @@ def wavelet_blstm_net_30(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs_conv = layers.conv1d_prebn_block(
             outputs,
@@ -4625,7 +4705,8 @@ def wavelet_blstm_net_30(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         # Skip connection at the input of lstm (direct access to magnitude)
@@ -4639,11 +4720,11 @@ def wavelet_blstm_net_30(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         # Three branches
-        outputs_fusion = tf.concat(
-            [outputs_lstm, outputs_conv, outputs_cwt], axis=-1)
+        outputs_fusion = tf.concat([outputs_lstm, outputs_conv, outputs_cwt], axis=-1)
 
         outputs = layers.sequence_fc_layer(
             outputs_fusion,
@@ -4653,7 +4734,8 @@ def wavelet_blstm_net_30(
             drop_rate=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
             activation=tf.nn.relu,
-            name='fc_1')
+            name="fc_1",
+        )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -4663,22 +4745,18 @@ def wavelet_blstm_net_30(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v115(
-        inputs,
-        params,
-        training,
-        name='model_v115'
-):
-    """ conv 1D and BLSTM to make a prediction.
+def wavelet_blstm_net_v115(inputs, params, training, name="model_v115"):
+    """conv 1D and BLSTM to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -4691,11 +4769,10 @@ def wavelet_blstm_net_v115(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v115') A name for the network.
     """
-    print('Using model V115 (Time-Domain + Kernel 5)')
+    print("Using model V115 (Time-Domain + Kernel 5)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -4707,9 +4784,11 @@ def wavelet_blstm_net_v115(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -4723,7 +4802,8 @@ def wavelet_blstm_net_v115(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -4734,7 +4814,8 @@ def wavelet_blstm_net_v115(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -4745,7 +4826,8 @@ def wavelet_blstm_net_v115(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -4758,7 +4840,8 @@ def wavelet_blstm_net_v115(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -4770,7 +4853,8 @@ def wavelet_blstm_net_v115(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -4780,22 +4864,18 @@ def wavelet_blstm_net_v115(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v195(
-        inputs,
-        params,
-        training,
-        name='model_v195'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v195(inputs, params, training, name="model_v195"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -4809,11 +4889,10 @@ def wavelet_blstm_net_v195(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v195') A name for the network.
     """
-    print('Using model V195 (general cwt + kernel 5)')
+    print("Using model V195 (general cwt + kernel 5)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer_general(
             inputs,
@@ -4832,7 +4911,8 @@ def wavelet_blstm_net_v195(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         # Convolutional stage (standard feed-forward)
         outputs = layers.conv2d_prebn_block(
@@ -4844,7 +4924,8 @@ def wavelet_blstm_net_v195(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -4855,10 +4936,11 @@ def wavelet_blstm_net_v195(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -4871,7 +4953,8 @@ def wavelet_blstm_net_v195(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -4883,7 +4966,8 @@ def wavelet_blstm_net_v195(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -4893,22 +4977,18 @@ def wavelet_blstm_net_v195(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v11g(
-        inputs,
-        params,
-        training,
-        name='model_v11g'
-):
-    """ conv 1D and BiGRU to make a prediction.
+def wavelet_blstm_net_v11g(inputs, params, training, name="model_v11g"):
+    """conv 1D and BiGRU to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -4921,11 +5001,10 @@ def wavelet_blstm_net_v11g(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v11g') A name for the network.
     """
-    print('Using model V11g (Time-Domain + GRU)')
+    print("Using model V11g (Time-Domain + GRU)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -4937,9 +5016,11 @@ def wavelet_blstm_net_v11g(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -4952,7 +5033,8 @@ def wavelet_blstm_net_v11g(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -4961,7 +5043,8 @@ def wavelet_blstm_net_v11g(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -4970,7 +5053,8 @@ def wavelet_blstm_net_v11g(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BiGRU (2 layers)
         outputs = layers.multilayer_gru_block(
@@ -4983,7 +5067,8 @@ def wavelet_blstm_net_v11g(
             drop_rate_first_gru=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_gru=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_bigru')
+            name="multi_layer_bigru",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -4995,7 +5080,8 @@ def wavelet_blstm_net_v11g(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -5005,22 +5091,18 @@ def wavelet_blstm_net_v11g(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v19g(
-        inputs,
-        params,
-        training,
-        name='model_v19g'
-):
-    """ Wavelet transform, conv, and BiGRU to make a prediction.
+def wavelet_blstm_net_v19g(inputs, params, training, name="model_v19g"):
+    """Wavelet transform, conv, and BiGRU to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -5034,11 +5116,10 @@ def wavelet_blstm_net_v19g(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v19g') A name for the network.
     """
-    print('Using model V19g (general cwt + GRU)')
+    print("Using model V19g (general cwt + GRU)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer_general(
             inputs,
@@ -5057,7 +5138,8 @@ def wavelet_blstm_net_v19g(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         # Convolutional stage (standard feed-forward)
         outputs = layers.conv2d_prebn_block(
@@ -5068,7 +5150,8 @@ def wavelet_blstm_net_v19g(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -5077,10 +5160,11 @@ def wavelet_blstm_net_v19g(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BiGRU (2 layers)
         outputs = layers.multilayer_gru_block(
@@ -5093,7 +5177,8 @@ def wavelet_blstm_net_v19g(
             drop_rate_first_gru=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_gru=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_bigru')
+            name="multi_layer_bigru",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -5105,7 +5190,8 @@ def wavelet_blstm_net_v19g(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -5115,22 +5201,18 @@ def wavelet_blstm_net_v19g(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v31(
-        inputs,
-        params,
-        training,
-        name='model_v31'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v31(inputs, params, training, name="model_v31"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -5144,11 +5226,10 @@ def wavelet_blstm_net_v31(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v31') A name for the network.
     """
-    print('Using model V31 (general cwt with indep branches, 2 convs)')
+    print("Using model V31 (general cwt with indep branches, 2 convs)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer_general(
             inputs,
@@ -5167,14 +5248,16 @@ def wavelet_blstm_net_v31(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         # Pooling
         n_bands = 8
         pool_size = params[pkeys.N_SCALES] // n_bands
         # Output sequence has shape [batch_size, time_len, n_scales, channels]
         outputs = tf.layers.average_pooling2d(
-            inputs=outputs, pool_size=(2, pool_size), strides=(2, pool_size))
+            inputs=outputs, pool_size=(2, pool_size), strides=(2, pool_size)
+        )
 
         # Unstack bands
         outputs_unstack = tf.unstack(outputs, axis=2)
@@ -5182,7 +5265,7 @@ def wavelet_blstm_net_v31(
 
         outputs_after_conv = []
         for i, single_output in enumerate(outputs_unstack):
-            with tf.variable_scope('band_%d' % i):
+            with tf.variable_scope("band_%d" % i):
                 # Convolutional stage (standard feed-forward)
                 single_output = layers.conv1d_prebn_block(
                     single_output,
@@ -5192,7 +5275,8 @@ def wavelet_blstm_net_v31(
                     batchnorm=params[pkeys.TYPE_BATCHNORM],
                     downsampling=params[pkeys.CONV_DOWNSAMPLING],
                     kernel_init=tf.initializers.he_normal(),
-                    name='convblock_1')
+                    name="convblock_1",
+                )
                 single_output = layers.conv1d_prebn_block(
                     single_output,
                     params[pkeys.CWT_CONV_FILTERS_2],
@@ -5200,13 +5284,14 @@ def wavelet_blstm_net_v31(
                     batchnorm=params[pkeys.TYPE_BATCHNORM],
                     downsampling=params[pkeys.CONV_DOWNSAMPLING],
                     kernel_init=tf.initializers.he_normal(),
-                    name='convblock_2')
+                    name="convblock_2",
+                )
             outputs_after_conv.append(single_output)
 
         # Concatenate all paths
         outputs = tf.concat(outputs_after_conv, axis=-1)
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -5219,7 +5304,8 @@ def wavelet_blstm_net_v31(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -5231,7 +5317,8 @@ def wavelet_blstm_net_v31(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -5241,21 +5328,17 @@ def wavelet_blstm_net_v31(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v32(
-        inputs,
-        params,
-        training,
-        name='model_v32'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v32(inputs, params, training, name="model_v32"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -5269,11 +5352,10 @@ def wavelet_blstm_net_v32(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v32') A name for the network.
     """
-    print('Using model V32 (general cwt with indep branches, 3 convs)')
+    print("Using model V32 (general cwt with indep branches, 3 convs)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer_general(
             inputs,
@@ -5292,14 +5374,16 @@ def wavelet_blstm_net_v32(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         # Pooling
         n_bands = 8
         pool_size = params[pkeys.N_SCALES] // n_bands
         # Output sequence has shape [batch_size, time_len, n_scales, channels]
         outputs = tf.layers.average_pooling2d(
-            inputs=outputs, pool_size=(1, pool_size), strides=(1, pool_size))
+            inputs=outputs, pool_size=(1, pool_size), strides=(1, pool_size)
+        )
 
         # Unstack bands
         outputs_unstack = tf.unstack(outputs, axis=2)
@@ -5307,7 +5391,7 @@ def wavelet_blstm_net_v32(
 
         outputs_after_conv = []
         for i, single_output in enumerate(outputs_unstack):
-            with tf.variable_scope('band_%d' % i):
+            with tf.variable_scope("band_%d" % i):
                 # Convolutional stage (standard feed-forward)
                 single_output = layers.conv1d_prebn_block(
                     single_output,
@@ -5317,7 +5401,8 @@ def wavelet_blstm_net_v32(
                     batchnorm=params[pkeys.TYPE_BATCHNORM],
                     downsampling=params[pkeys.CONV_DOWNSAMPLING],
                     kernel_init=tf.initializers.he_normal(),
-                    name='convblock_1')
+                    name="convblock_1",
+                )
                 single_output = layers.conv1d_prebn_block(
                     single_output,
                     params[pkeys.CWT_CONV_FILTERS_2],
@@ -5325,7 +5410,8 @@ def wavelet_blstm_net_v32(
                     batchnorm=params[pkeys.TYPE_BATCHNORM],
                     downsampling=params[pkeys.CONV_DOWNSAMPLING],
                     kernel_init=tf.initializers.he_normal(),
-                    name='convblock_2')
+                    name="convblock_2",
+                )
                 single_output = layers.conv1d_prebn_block(
                     single_output,
                     params[pkeys.CWT_CONV_FILTERS_3],
@@ -5333,13 +5419,14 @@ def wavelet_blstm_net_v32(
                     batchnorm=params[pkeys.TYPE_BATCHNORM],
                     downsampling=params[pkeys.CONV_DOWNSAMPLING],
                     kernel_init=tf.initializers.he_normal(),
-                    name='convblock_3')
+                    name="convblock_3",
+                )
             outputs_after_conv.append(single_output)
 
         # Concatenate all paths
         outputs = tf.concat(outputs_after_conv, axis=-1)
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -5352,7 +5439,8 @@ def wavelet_blstm_net_v32(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -5364,7 +5452,8 @@ def wavelet_blstm_net_v32(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -5374,22 +5463,18 @@ def wavelet_blstm_net_v32(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v19p(
-        inputs,
-        params,
-        training,
-        name='model_v19p'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v19p(inputs, params, training, name="model_v19p"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -5403,11 +5488,10 @@ def wavelet_blstm_net_v19p(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v19p') A name for the network.
     """
-    print('Using model V19p (general cwt + conv1x1 before lstm)')
+    print("Using model V19p (general cwt + conv1x1 before lstm)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer_general(
             inputs,
@@ -5426,7 +5510,8 @@ def wavelet_blstm_net_v19p(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         # Convolutional stage (standard feed-forward)
         outputs = layers.conv2d_prebn_block(
@@ -5437,7 +5522,8 @@ def wavelet_blstm_net_v19p(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -5446,24 +5532,33 @@ def wavelet_blstm_net_v19p(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # conv 1x1
         n_filters = 256
-        with tf.variable_scope('conv1x1_neck'):
+        with tf.variable_scope("conv1x1_neck"):
             outputs = tf.expand_dims(outputs, axis=2)
             outputs = tf.layers.conv2d(
-                inputs=outputs, filters=n_filters, kernel_size=(1, 1),
+                inputs=outputs,
+                filters=n_filters,
+                kernel_size=(1, 1),
                 padding=constants.PAD_SAME,
-                strides=1, name='conv1',
+                strides=1,
+                name="conv1",
                 kernel_initializer=tf.initializers.he_normal(),
-                use_bias=False)
+                use_bias=False,
+            )
             outputs = layers.batchnorm_layer(
-                outputs, 'bn', batchnorm=params[pkeys.TYPE_BATCHNORM],
-                training=training, scale=False)
+                outputs,
+                "bn",
+                batchnorm=params[pkeys.TYPE_BATCHNORM],
+                training=training,
+                scale=False,
+            )
             outputs = tf.nn.relu(outputs)
             outputs = tf.squeeze(outputs, axis=2, name="squeeze")
 
@@ -5478,7 +5573,8 @@ def wavelet_blstm_net_v19p(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -5490,7 +5586,8 @@ def wavelet_blstm_net_v19p(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -5500,22 +5597,18 @@ def wavelet_blstm_net_v19p(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v33(
-        inputs,
-        params,
-        training,
-        name='model_v33'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v33(inputs, params, training, name="model_v33"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -5529,11 +5622,10 @@ def wavelet_blstm_net_v33(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v33') A name for the network.
     """
-    print('Using model V33 (general cwt with many LSTM)')
+    print("Using model V33 (general cwt with many LSTM)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer_general(
             inputs,
@@ -5552,7 +5644,8 @@ def wavelet_blstm_net_v33(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         # Convolutional stage (standard feed-forward)
         outputs = layers.conv2d_prebn_block(
@@ -5563,7 +5656,8 @@ def wavelet_blstm_net_v33(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -5572,7 +5666,8 @@ def wavelet_blstm_net_v33(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Unstack bands
         outputs_unstack = tf.unstack(outputs, axis=2)
@@ -5580,7 +5675,8 @@ def wavelet_blstm_net_v33(
 
         outputs_after_first_lstm = []
         n_units_first_lstm = int(
-            params[pkeys.INITIAL_LSTM_UNITS] / (params[pkeys.N_SCALES] / 4))
+            params[pkeys.INITIAL_LSTM_UNITS] / (params[pkeys.N_SCALES] / 4)
+        )
         for i, single_output in enumerate(outputs_unstack):
             #  First layer LSTM
             single_output = layers.lstm_layer(
@@ -5590,7 +5686,8 @@ def wavelet_blstm_net_v33(
                 dropout=params[pkeys.TYPE_DROPOUT],
                 drop_rate=params[pkeys.DROP_RATE_BEFORE_LSTM],
                 training=training,
-                name='lstm_1_b%d' % (i + 1))
+                name="lstm_1_b%d" % (i + 1),
+            )
             outputs_after_first_lstm.append(single_output)
 
         # Concatenate all paths
@@ -5604,7 +5701,8 @@ def wavelet_blstm_net_v33(
             dropout=params[pkeys.TYPE_DROPOUT],
             drop_rate=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='lstm_2')
+            name="lstm_2",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -5616,7 +5714,8 @@ def wavelet_blstm_net_v33(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -5626,22 +5725,18 @@ def wavelet_blstm_net_v33(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v34(
-        inputs,
-        params,
-        training,
-        name='model_v34'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v34(inputs, params, training, name="model_v34"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -5655,11 +5750,10 @@ def wavelet_blstm_net_v34(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v34') A name for the network.
     """
-    print('Using model V34 (general cwt)')
+    print("Using model V34 (general cwt)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer_general(
             inputs,
@@ -5678,10 +5772,11 @@ def wavelet_blstm_net_v34(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Convolutional stage (standard feed-forward)
         outputs = layers.conv1d_prebn_block(
@@ -5692,7 +5787,8 @@ def wavelet_blstm_net_v34(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -5701,7 +5797,8 @@ def wavelet_blstm_net_v34(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -5710,7 +5807,8 @@ def wavelet_blstm_net_v34(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -5723,7 +5821,8 @@ def wavelet_blstm_net_v34(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -5735,7 +5834,8 @@ def wavelet_blstm_net_v34(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -5745,26 +5845,21 @@ def wavelet_blstm_net_v34(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_att01(
-        inputs,
-        params,
-        training,
-        name='model_att01'
-):
-    print('Using model ATT01 (Time-Domain)')
+def wavelet_blstm_net_att01(inputs, params, training, name="model_att01"):
+    print("Using model ATT01 (Time-Domain)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -5776,9 +5871,11 @@ def wavelet_blstm_net_att01(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -5791,7 +5888,8 @@ def wavelet_blstm_net_att01(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -5800,7 +5898,8 @@ def wavelet_blstm_net_att01(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -5809,7 +5908,8 @@ def wavelet_blstm_net_att01(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # --------------------------
         # Attention layer
@@ -5818,14 +5918,14 @@ def wavelet_blstm_net_att01(
         original_length = params[pkeys.PAGE_DURATION] * params[pkeys.FS]
         seq_len = int(original_length / params[pkeys.TOTAL_DOWNSAMPLING_FACTOR])
 
-        with tf.variable_scope('attention'):
+        with tf.variable_scope("attention"):
 
             # Prepare input
             pos_enc = layers.get_positional_encoding(
                 seq_len=seq_len,
                 dims=params[pkeys.ATT_DIM],
                 pe_factor=params[pkeys.ATT_PE_FACTOR],
-                name='pos_enc'
+                name="pos_enc",
             )
             pos_enc = tf.expand_dims(pos_enc, axis=0)  # Add batch axis
             outputs = layers.sequence_fc_layer(
@@ -5833,14 +5933,17 @@ def wavelet_blstm_net_att01(
                 params[pkeys.ATT_DIM],
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
-                name='fc_embed')
+                name="fc_embed",
+            )
 
             outputs = outputs + pos_enc
             outputs = layers.dropout_layer(
-                outputs, 'drop_embed',
+                outputs,
+                "drop_embed",
                 drop_rate=params[pkeys.ATT_DROP_RATE],
                 dropout=params[pkeys.TYPE_DROPOUT],
-                training=training)
+                training=training,
+            )
 
             # Prepare queries, keys, and values
             queries = layers.sequence_fc_layer(
@@ -5848,24 +5951,26 @@ def wavelet_blstm_net_att01(
                 params[pkeys.ATT_DIM],
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
-                name='queries')
+                name="queries",
+            )
             keys = layers.sequence_fc_layer(
                 outputs,
                 params[pkeys.ATT_DIM],
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
-                name='keys')
+                name="keys",
+            )
             values = layers.sequence_fc_layer(
                 outputs,
                 params[pkeys.ATT_DIM],
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
-                name='values')
+                name="values",
+            )
 
             outputs = layers.naive_multihead_attention_layer(
-                queries, keys, values,
-                params[pkeys.ATT_N_HEADS],
-                name='multi_head_att')
+                queries, keys, values, params[pkeys.ATT_N_HEADS], name="multi_head_att"
+            )
 
             # FFN
             outputs = layers.sequence_fc_layer(
@@ -5876,7 +5981,8 @@ def wavelet_blstm_net_att01(
                 drop_rate=params[pkeys.ATT_DROP_RATE],
                 training=training,
                 activation=tf.nn.relu,
-                name='ffn_1')
+                name="ffn_1",
+            )
 
             outputs = layers.sequence_fc_layer(
                 outputs,
@@ -5884,7 +5990,8 @@ def wavelet_blstm_net_att01(
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
                 activation=tf.nn.relu,
-                name='ffn_2')
+                name="ffn_2",
+            )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -5896,7 +6003,8 @@ def wavelet_blstm_net_att01(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -5906,26 +6014,21 @@ def wavelet_blstm_net_att01(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_att02(
-        inputs,
-        params,
-        training,
-        name='model_att02'
-):
-    print('Using model ATT02 (Time-Domain)')
+def wavelet_blstm_net_att02(inputs, params, training, name="model_att02"):
+    print("Using model ATT02 (Time-Domain)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -5937,9 +6040,11 @@ def wavelet_blstm_net_att02(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -5952,7 +6057,8 @@ def wavelet_blstm_net_att02(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -5961,7 +6067,8 @@ def wavelet_blstm_net_att02(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -5970,7 +6077,8 @@ def wavelet_blstm_net_att02(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # --------------------------
         # Attention layer
@@ -5979,14 +6087,14 @@ def wavelet_blstm_net_att02(
         original_length = params[pkeys.PAGE_DURATION] * params[pkeys.FS]
         seq_len = int(original_length / params[pkeys.TOTAL_DOWNSAMPLING_FACTOR])
 
-        with tf.variable_scope('attention'):
+        with tf.variable_scope("attention"):
 
             # Prepare input
             pos_enc = layers.get_positional_encoding(
                 seq_len=seq_len,
                 dims=params[pkeys.ATT_DIM],
                 pe_factor=params[pkeys.ATT_PE_FACTOR],
-                name='pos_enc'
+                name="pos_enc",
             )
             pos_enc = tf.expand_dims(pos_enc, axis=0)  # Add batch axis
             outputs = layers.sequence_fc_layer(
@@ -5994,22 +6102,25 @@ def wavelet_blstm_net_att02(
                 params[pkeys.ATT_DIM],
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
-                name='fc_embed')
+                name="fc_embed",
+            )
 
             outputs = outputs + pos_enc
             outputs = layers.dropout_layer(
-                outputs, 'drop_embed',
+                outputs,
+                "drop_embed",
                 drop_rate=params[pkeys.ATT_DROP_RATE],
                 dropout=params[pkeys.TYPE_DROPOUT],
-                training=training)
+                training=training,
+            )
 
             n_heads = params[pkeys.ATT_N_HEADS]
             dim_per_head = int(params[pkeys.ATT_DIM] / n_heads)
             dim_per_lstm = int(dim_per_head / 2)
-            with tf.variable_scope('multi_head_att'):
+            with tf.variable_scope("multi_head_att"):
                 outputs_head = []
                 for idx_head in range(n_heads):
-                    with tf.variable_scope('head_att_%d' % idx_head):
+                    with tf.variable_scope("head_att_%d" % idx_head):
                         # scores have shape [batch, q_time_len, k_time_len]
                         # outputs have shape [batch, q_time_len, v_dims]
                         # Prepare queries, keys, and values
@@ -6018,24 +6129,27 @@ def wavelet_blstm_net_att02(
                             num_units=dim_per_lstm,
                             num_dirs=constants.BIDIRECTIONAL,
                             training=training,
-                            name='q_lstm_%d' % idx_head)
+                            name="q_lstm_%d" % idx_head,
+                        )
                         head_k = layers.lstm_layer(
                             outputs,
                             num_units=dim_per_lstm,
                             num_dirs=constants.BIDIRECTIONAL,
                             training=training,
-                            name='k_lstm_%d' % idx_head)
+                            name="k_lstm_%d" % idx_head,
+                        )
                         # Values must be isolated
                         head_v = layers.sequence_fc_layer(
                             outputs,
                             dim_per_head,
                             kernel_init=tf.initializers.he_normal(),
                             training=training,
-                            name='v_%d' % idx_head)
+                            name="v_%d" % idx_head,
+                        )
 
                         head_o, _ = layers.attention_layer(
-                            head_q, head_k, head_v,
-                            name='head_%d' % idx_head)
+                            head_q, head_k, head_v, name="head_%d" % idx_head
+                        )
                         outputs_head.append(head_o)
 
                 # Concatenate heads
@@ -6050,7 +6164,8 @@ def wavelet_blstm_net_att02(
                 drop_rate=params[pkeys.ATT_DROP_RATE],
                 training=training,
                 activation=tf.nn.relu,
-                name='ffn_1')
+                name="ffn_1",
+            )
 
             outputs = layers.sequence_fc_layer(
                 outputs,
@@ -6058,7 +6173,8 @@ def wavelet_blstm_net_att02(
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
                 activation=tf.nn.relu,
-                name='ffn_2')
+                name="ffn_2",
+            )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -6070,7 +6186,8 @@ def wavelet_blstm_net_att02(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -6080,26 +6197,21 @@ def wavelet_blstm_net_att02(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_att03(
-        inputs,
-        params,
-        training,
-        name='model_att03'
-):
-    print('Using model ATT03 (Time-Domain)')
+def wavelet_blstm_net_att03(inputs, params, training, name="model_att03"):
+    print("Using model ATT03 (Time-Domain)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -6111,9 +6223,11 @@ def wavelet_blstm_net_att03(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -6126,7 +6240,8 @@ def wavelet_blstm_net_att03(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -6135,7 +6250,8 @@ def wavelet_blstm_net_att03(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -6144,7 +6260,8 @@ def wavelet_blstm_net_att03(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # --------------------------
         # Attention layer
@@ -6155,7 +6272,7 @@ def wavelet_blstm_net_att03(
         att_dim = params[pkeys.ATT_DIM]
         n_heads = params[pkeys.ATT_N_HEADS]
 
-        with tf.variable_scope('attention'):
+        with tf.variable_scope("attention"):
 
             after_lstm_outputs = layers.lstm_layer(
                 outputs,
@@ -6164,14 +6281,15 @@ def wavelet_blstm_net_att03(
                 dropout=params[pkeys.TYPE_DROPOUT],
                 drop_rate=params[pkeys.DROP_RATE_BEFORE_LSTM],
                 training=training,
-                name='blstm')
+                name="blstm",
+            )
 
             # Prepare input for values
             pos_enc = layers.get_positional_encoding(
                 seq_len=seq_len,
                 dims=att_dim,
                 pe_factor=params[pkeys.ATT_PE_FACTOR],
-                name='pos_enc'
+                name="pos_enc",
             )
             pos_enc = tf.expand_dims(pos_enc, axis=0)  # Add batch axis
 
@@ -6180,13 +6298,16 @@ def wavelet_blstm_net_att03(
                 att_dim,
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
-                name='fc_embed_v')
+                name="fc_embed_v",
+            )
             v_outputs = v_outputs + pos_enc
             v_outputs = layers.dropout_layer(
-                v_outputs, 'drop_embed_v',
+                v_outputs,
+                "drop_embed_v",
                 drop_rate=params[pkeys.ATT_DROP_RATE],
                 dropout=params[pkeys.TYPE_DROPOUT],
-                training=training)
+                training=training,
+            )
 
             # Prepare input for queries and keys
             qk_outputs = layers.sequence_fc_layer(
@@ -6194,13 +6315,16 @@ def wavelet_blstm_net_att03(
                 att_dim,
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
-                name='fc_embed_qk')
+                name="fc_embed_qk",
+            )
             qk_outputs = qk_outputs + pos_enc
             qk_outputs = layers.dropout_layer(
-                qk_outputs, 'drop_embed_qk',
+                qk_outputs,
+                "drop_embed_qk",
                 drop_rate=params[pkeys.ATT_DROP_RATE],
                 dropout=params[pkeys.TYPE_DROPOUT],
-                training=training)
+                training=training,
+            )
 
             # Prepare queries, keys, and values
             queries = layers.sequence_fc_layer(
@@ -6208,24 +6332,26 @@ def wavelet_blstm_net_att03(
                 att_dim,
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
-                name='queries')
+                name="queries",
+            )
             keys = layers.sequence_fc_layer(
                 qk_outputs,
                 att_dim,
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
-                name='keys')
+                name="keys",
+            )
             values = layers.sequence_fc_layer(
                 v_outputs,
                 att_dim,
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
-                name='values')
+                name="values",
+            )
 
             outputs = layers.naive_multihead_attention_layer(
-                queries, keys, values,
-                n_heads,
-                name='multi_head_att')
+                queries, keys, values, n_heads, name="multi_head_att"
+            )
 
             # FFN
             outputs = layers.sequence_fc_layer(
@@ -6236,7 +6362,8 @@ def wavelet_blstm_net_att03(
                 drop_rate=params[pkeys.ATT_DROP_RATE],
                 training=training,
                 activation=tf.nn.relu,
-                name='ffn_1')
+                name="ffn_1",
+            )
 
             outputs = layers.sequence_fc_layer(
                 outputs,
@@ -6244,7 +6371,8 @@ def wavelet_blstm_net_att03(
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
                 activation=tf.nn.relu,
-                name='ffn_2')
+                name="ffn_2",
+            )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -6256,7 +6384,8 @@ def wavelet_blstm_net_att03(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -6266,26 +6395,21 @@ def wavelet_blstm_net_att03(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_att04(
-        inputs,
-        params,
-        training,
-        name='model_att04'
-):
-    print('Using model ATT04 (Time-Domain)')
+def wavelet_blstm_net_att04(inputs, params, training, name="model_att04"):
+    print("Using model ATT04 (Time-Domain)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -6297,9 +6421,11 @@ def wavelet_blstm_net_att04(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -6312,7 +6438,8 @@ def wavelet_blstm_net_att04(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -6321,7 +6448,8 @@ def wavelet_blstm_net_att04(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -6330,7 +6458,8 @@ def wavelet_blstm_net_att04(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # --------------------------
         # Attention layer
@@ -6341,7 +6470,7 @@ def wavelet_blstm_net_att04(
         att_dim = params[pkeys.ATT_DIM]
         n_heads = params[pkeys.ATT_N_HEADS]
 
-        with tf.variable_scope('attention'):
+        with tf.variable_scope("attention"):
 
             # Multilayer BLSTM (2 layers)
             after_lstm_outputs = layers.multilayer_lstm_block(
@@ -6354,14 +6483,15 @@ def wavelet_blstm_net_att04(
                 drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
                 drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
-                name='multi_layer_blstm')
+                name="multi_layer_blstm",
+            )
 
             # Prepare input for values
             pos_enc = layers.get_positional_encoding(
                 seq_len=seq_len,
                 dims=att_dim,
                 pe_factor=params[pkeys.ATT_PE_FACTOR],
-                name='pos_enc'
+                name="pos_enc",
             )
             pos_enc = tf.expand_dims(pos_enc, axis=0)  # Add batch axis
 
@@ -6370,13 +6500,16 @@ def wavelet_blstm_net_att04(
                 att_dim,
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
-                name='fc_embed_v')
+                name="fc_embed_v",
+            )
             v_outputs = v_outputs + pos_enc
             v_outputs = layers.dropout_layer(
-                v_outputs, 'drop_embed_v',
+                v_outputs,
+                "drop_embed_v",
                 drop_rate=params[pkeys.ATT_DROP_RATE],
                 dropout=params[pkeys.TYPE_DROPOUT],
-                training=training)
+                training=training,
+            )
 
             # Prepare input for queries and keys
             qk_outputs = layers.sequence_fc_layer(
@@ -6384,13 +6517,16 @@ def wavelet_blstm_net_att04(
                 att_dim,
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
-                name='fc_embed_qk')
+                name="fc_embed_qk",
+            )
             qk_outputs = qk_outputs + pos_enc
             qk_outputs = layers.dropout_layer(
-                qk_outputs, 'drop_embed_qk',
+                qk_outputs,
+                "drop_embed_qk",
                 drop_rate=params[pkeys.ATT_DROP_RATE],
                 dropout=params[pkeys.TYPE_DROPOUT],
-                training=training)
+                training=training,
+            )
 
             # Prepare queries, keys, and values
             queries = layers.sequence_fc_layer(
@@ -6398,24 +6534,26 @@ def wavelet_blstm_net_att04(
                 att_dim,
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
-                name='queries')
+                name="queries",
+            )
             keys = layers.sequence_fc_layer(
                 qk_outputs,
                 att_dim,
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
-                name='keys')
+                name="keys",
+            )
             values = layers.sequence_fc_layer(
                 v_outputs,
                 att_dim,
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
-                name='values')
+                name="values",
+            )
 
             outputs = layers.naive_multihead_attention_layer(
-                queries, keys, values,
-                n_heads,
-                name='multi_head_att')
+                queries, keys, values, n_heads, name="multi_head_att"
+            )
 
             # FFN
             outputs = layers.sequence_fc_layer(
@@ -6426,7 +6564,8 @@ def wavelet_blstm_net_att04(
                 drop_rate=params[pkeys.ATT_DROP_RATE],
                 training=training,
                 activation=tf.nn.relu,
-                name='ffn_1')
+                name="ffn_1",
+            )
 
             outputs = layers.sequence_fc_layer(
                 outputs,
@@ -6434,7 +6573,8 @@ def wavelet_blstm_net_att04(
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
                 activation=tf.nn.relu,
-                name='ffn_2')
+                name="ffn_2",
+            )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -6446,7 +6586,8 @@ def wavelet_blstm_net_att04(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -6456,26 +6597,21 @@ def wavelet_blstm_net_att04(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_att04c(
-        inputs,
-        params,
-        training,
-        name='model_att04c'
-):
-    print('Using model ATT04C (Time-Domain)')
+def wavelet_blstm_net_att04c(inputs, params, training, name="model_att04c"):
+    print("Using model ATT04C (Time-Domain)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -6487,9 +6623,11 @@ def wavelet_blstm_net_att04c(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -6502,7 +6640,8 @@ def wavelet_blstm_net_att04c(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -6511,7 +6650,8 @@ def wavelet_blstm_net_att04c(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -6520,7 +6660,8 @@ def wavelet_blstm_net_att04c(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # --------------------------
         # Attention layer
@@ -6532,7 +6673,7 @@ def wavelet_blstm_net_att04c(
         n_heads = params[pkeys.ATT_N_HEADS]
         att_pe_dim = params[pkeys.ATT_PE_CONCAT_DIM]
 
-        with tf.variable_scope('attention'):
+        with tf.variable_scope("attention"):
 
             # Multilayer BLSTM (2 layers)
             after_lstm_outputs = layers.multilayer_lstm_block(
@@ -6545,14 +6686,15 @@ def wavelet_blstm_net_att04c(
                 drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
                 drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
-                name='multi_layer_blstm')
+                name="multi_layer_blstm",
+            )
 
             # Prepare input for values
             pos_enc = layers.get_positional_encoding(
                 seq_len=seq_len,
                 dims=att_pe_dim,
                 pe_factor=params[pkeys.ATT_PE_FACTOR],
-                name='pos_enc'
+                name="pos_enc",
             )
             pos_enc = tf.expand_dims(pos_enc, axis=0)  # Add batch axis
             # Get the number of rows in the fed value at run-time.
@@ -6561,18 +6703,22 @@ def wavelet_blstm_net_att04c(
 
             v_outputs = tf.concat([outputs, pos_enc], axis=-1)
             v_outputs = layers.dropout_layer(
-                v_outputs, 'drop_embed_v',
+                v_outputs,
+                "drop_embed_v",
                 drop_rate=params[pkeys.ATT_DROP_RATE],
                 dropout=params[pkeys.TYPE_DROPOUT],
-                training=training)
+                training=training,
+            )
 
             # Prepare input for queries and keys
             qk_outputs = tf.concat([after_lstm_outputs, pos_enc], axis=-1)
             qk_outputs = layers.dropout_layer(
-                qk_outputs, 'drop_embed_qk',
+                qk_outputs,
+                "drop_embed_qk",
                 drop_rate=params[pkeys.ATT_DROP_RATE],
                 dropout=params[pkeys.TYPE_DROPOUT],
-                training=training)
+                training=training,
+            )
 
             # Prepare queries, keys, and values
             queries = layers.sequence_fc_layer(
@@ -6580,24 +6726,26 @@ def wavelet_blstm_net_att04c(
                 att_dim,
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
-                name='queries')
+                name="queries",
+            )
             keys = layers.sequence_fc_layer(
                 qk_outputs,
                 att_dim,
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
-                name='keys')
+                name="keys",
+            )
             values = layers.sequence_fc_layer(
                 v_outputs,
                 att_dim,
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
-                name='values')
+                name="values",
+            )
 
             outputs = layers.naive_multihead_attention_layer(
-                queries, keys, values,
-                n_heads,
-                name='multi_head_att')
+                queries, keys, values, n_heads, name="multi_head_att"
+            )
 
             # FFN
             outputs = layers.sequence_fc_layer(
@@ -6608,7 +6756,8 @@ def wavelet_blstm_net_att04c(
                 drop_rate=params[pkeys.ATT_DROP_RATE],
                 training=training,
                 activation=tf.nn.relu,
-                name='ffn_1')
+                name="ffn_1",
+            )
 
             outputs = layers.sequence_fc_layer(
                 outputs,
@@ -6616,7 +6765,8 @@ def wavelet_blstm_net_att04c(
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
                 activation=tf.nn.relu,
-                name='ffn_2')
+                name="ffn_2",
+            )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -6628,7 +6778,8 @@ def wavelet_blstm_net_att04c(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -6638,22 +6789,18 @@ def wavelet_blstm_net_att04c(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v35(
-        inputs,
-        params,
-        training,
-        name='model_v35'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v35(inputs, params, training, name="model_v35"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -6667,9 +6814,8 @@ def wavelet_blstm_net_v35(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v19') A name for the network.
     """
-    print('Using model V35 (general cwt + time at last FC)')
-    border_crop = int(
-        params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+    print("Using model V35 (general cwt + time at last FC)")
+    border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
     start_crop = border_crop
     if border_crop <= 0:
         end_crop = None
@@ -6686,9 +6832,11 @@ def wavelet_blstm_net_v35(
         time_outputs = tf.expand_dims(time_outputs, axis=2)
         # BN at input
         time_outputs = layers.batchnorm_layer(
-            time_outputs, 'time_bn_input',
+            time_outputs,
+            "time_bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
         # 1D convolutions expect shape [batch, time_len, n_feats]
         # Convolutional stage (standard feed-forward)
         time_outputs = layers.conv1d_prebn_block(
@@ -6699,7 +6847,8 @@ def wavelet_blstm_net_v35(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='time_convblock_1')
+            name="time_convblock_1",
+        )
         time_outputs = layers.conv1d_prebn_block(
             time_outputs,
             params[pkeys.TIME_CONV_FILTERS_2],
@@ -6707,7 +6856,8 @@ def wavelet_blstm_net_v35(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='time_convblock_2')
+            name="time_convblock_2",
+        )
         time_outputs = layers.conv1d_prebn_block(
             time_outputs,
             params[pkeys.TIME_CONV_FILTERS_3],
@@ -6715,7 +6865,8 @@ def wavelet_blstm_net_v35(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='time_convblock_3')
+            name="time_convblock_3",
+        )
         # Multilayer BLSTM (2 layers)
         time_outputs = layers.multilayer_lstm_block(
             time_outputs,
@@ -6727,7 +6878,8 @@ def wavelet_blstm_net_v35(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='time_multi_layer_blstm')
+            name="time_multi_layer_blstm",
+        )
         # Additional FC layer to increase model flexibility
         time_outputs = layers.sequence_fc_layer(
             time_outputs,
@@ -6737,7 +6889,8 @@ def wavelet_blstm_net_v35(
             drop_rate=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
             activation=tf.nn.relu,
-            name='time_fc_1')
+            name="time_fc_1",
+        )
 
         # ---------------
         # RED-CWT Branch
@@ -6759,7 +6912,8 @@ def wavelet_blstm_net_v35(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
         # Convolutional stage (standard feed-forward)
         cwt_outputs = layers.conv2d_prebn_block(
             cwt_outputs,
@@ -6769,7 +6923,8 @@ def wavelet_blstm_net_v35(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='cwt_convblock_1')
+            name="cwt_convblock_1",
+        )
         cwt_outputs = layers.conv2d_prebn_block(
             cwt_outputs,
             params[pkeys.CWT_CONV_FILTERS_2],
@@ -6777,9 +6932,10 @@ def wavelet_blstm_net_v35(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='cwt_convblock_2')
+            name="cwt_convblock_2",
+        )
         # Flattening for dense part
-        cwt_outputs = layers.sequence_flatten(cwt_outputs, 'cwt_flatten')
+        cwt_outputs = layers.sequence_flatten(cwt_outputs, "cwt_flatten")
         # Multilayer BLSTM (2 layers)
         cwt_outputs = layers.multilayer_lstm_block(
             cwt_outputs,
@@ -6791,7 +6947,8 @@ def wavelet_blstm_net_v35(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='cwt_multi_layer_blstm')
+            name="cwt_multi_layer_blstm",
+        )
         # Additional FC layer to increase model flexibility
         cwt_outputs = layers.sequence_fc_layer(
             cwt_outputs,
@@ -6801,7 +6958,8 @@ def wavelet_blstm_net_v35(
             drop_rate=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
             activation=tf.nn.relu,
-            name='cwt_fc_1')
+            name="cwt_fc_1",
+        )
 
         # ---------------
         # Mixing
@@ -6817,7 +6975,8 @@ def wavelet_blstm_net_v35(
             drop_rate=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
             activation=tf.nn.relu,
-            name='fc_mix')
+            name="fc_mix",
+        )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -6827,22 +6986,18 @@ def wavelet_blstm_net_v35(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v11_ablation(
-        inputs,
-        params,
-        training,
-        name='model_v11_ablation'
-):
-    """ conv 1D and BLSTM to make a prediction.
+def wavelet_blstm_net_v11_ablation(inputs, params, training, name="model_v11_ablation"):
+    """conv 1D and BLSTM to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -6855,11 +7010,10 @@ def wavelet_blstm_net_v11_ablation(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v11') A name for the network.
     """
-    print('Using model V11 Ablation (Time-Domain)')
+    print("Using model V11 Ablation (Time-Domain)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -6871,9 +7025,11 @@ def wavelet_blstm_net_v11_ablation(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.ABLATION_TYPE_BATCHNORM_INPUT],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -6886,7 +7042,8 @@ def wavelet_blstm_net_v11_ablation(
             batchnorm=params[pkeys.ABLATION_TYPE_BATCHNORM_CONV],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -6895,7 +7052,8 @@ def wavelet_blstm_net_v11_ablation(
             batchnorm=params[pkeys.ABLATION_TYPE_BATCHNORM_CONV],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -6904,7 +7062,8 @@ def wavelet_blstm_net_v11_ablation(
             batchnorm=params[pkeys.ABLATION_TYPE_BATCHNORM_CONV],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -6917,7 +7076,8 @@ def wavelet_blstm_net_v11_ablation(
             drop_rate_first_lstm=params[pkeys.ABLATION_DROP_RATE],
             drop_rate_rest_lstm=params[pkeys.ABLATION_DROP_RATE],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -6929,7 +7089,8 @@ def wavelet_blstm_net_v11_ablation(
                 drop_rate=params[pkeys.ABLATION_DROP_RATE],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -6939,22 +7100,20 @@ def wavelet_blstm_net_v11_ablation(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
 def wavelet_blstm_net_v11_ablation_scaled(
-        inputs,
-        params,
-        training,
-        name='model_v11_ablation_scaled'
+    inputs, params, training, name="model_v11_ablation_scaled"
 ):
-    """ conv 1D and BLSTM to make a prediction.
+    """conv 1D and BLSTM to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -6967,11 +7126,10 @@ def wavelet_blstm_net_v11_ablation_scaled(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v11') A name for the network.
     """
-    print('Using model V11 Ablation Scaled (Time-Domain)')
+    print("Using model V11 Ablation Scaled (Time-Domain)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -6982,14 +7140,16 @@ def wavelet_blstm_net_v11_ablation_scaled(
         inputs = tf.expand_dims(inputs, axis=2)
 
         # Scale inputs
-        print('Scaling input by 1/10')
+        print("Scaling input by 1/10")
         inputs = inputs / 10.0
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.ABLATION_TYPE_BATCHNORM_INPUT],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -7002,7 +7162,8 @@ def wavelet_blstm_net_v11_ablation_scaled(
             batchnorm=params[pkeys.ABLATION_TYPE_BATCHNORM_CONV],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -7011,7 +7172,8 @@ def wavelet_blstm_net_v11_ablation_scaled(
             batchnorm=params[pkeys.ABLATION_TYPE_BATCHNORM_CONV],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -7020,7 +7182,8 @@ def wavelet_blstm_net_v11_ablation_scaled(
             batchnorm=params[pkeys.ABLATION_TYPE_BATCHNORM_CONV],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -7033,7 +7196,8 @@ def wavelet_blstm_net_v11_ablation_scaled(
             drop_rate_first_lstm=params[pkeys.ABLATION_DROP_RATE],
             drop_rate_rest_lstm=params[pkeys.ABLATION_DROP_RATE],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -7045,7 +7209,8 @@ def wavelet_blstm_net_v11_ablation_scaled(
                 drop_rate=params[pkeys.ABLATION_DROP_RATE],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -7055,22 +7220,18 @@ def wavelet_blstm_net_v11_ablation_scaled(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v11_d6k5(
-        inputs,
-        params,
-        training,
-        name='model_v11_d6k5'
-):
-    """ conv 1D and BLSTM to make a prediction.
+def wavelet_blstm_net_v11_d6k5(inputs, params, training, name="model_v11_d6k5"):
+    """conv 1D and BLSTM to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -7083,11 +7244,10 @@ def wavelet_blstm_net_v11_d6k5(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v11') A name for the network.
     """
-    print('Using model V11 D6-K5 (Time-Domain)')
+    print("Using model V11 D6-K5 (Time-Domain)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -7099,9 +7259,11 @@ def wavelet_blstm_net_v11_d6k5(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -7115,7 +7277,8 @@ def wavelet_blstm_net_v11_d6k5(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -7126,7 +7289,8 @@ def wavelet_blstm_net_v11_d6k5(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -7137,7 +7301,8 @@ def wavelet_blstm_net_v11_d6k5(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -7150,7 +7315,8 @@ def wavelet_blstm_net_v11_d6k5(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -7162,7 +7328,8 @@ def wavelet_blstm_net_v11_d6k5(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -7172,22 +7339,18 @@ def wavelet_blstm_net_v11_d6k5(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v11_d8k5(
-        inputs,
-        params,
-        training,
-        name='model_v11_d8k5'
-):
-    """ conv 1D and BLSTM to make a prediction.
+def wavelet_blstm_net_v11_d8k5(inputs, params, training, name="model_v11_d8k5"):
+    """conv 1D and BLSTM to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -7200,11 +7363,10 @@ def wavelet_blstm_net_v11_d8k5(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v11') A name for the network.
     """
-    print('Using model V11 D8-K5 (Time-Domain)')
+    print("Using model V11 D8-K5 (Time-Domain)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -7216,9 +7378,11 @@ def wavelet_blstm_net_v11_d8k5(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -7232,7 +7396,8 @@ def wavelet_blstm_net_v11_d8k5(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -7243,7 +7408,8 @@ def wavelet_blstm_net_v11_d8k5(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -7254,7 +7420,8 @@ def wavelet_blstm_net_v11_d8k5(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=None,
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3a')
+            name="convblock_1d_3a",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -7265,7 +7432,8 @@ def wavelet_blstm_net_v11_d8k5(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3b')
+            name="convblock_1d_3b",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -7278,7 +7446,8 @@ def wavelet_blstm_net_v11_d8k5(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -7290,7 +7459,8 @@ def wavelet_blstm_net_v11_d8k5(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -7300,22 +7470,18 @@ def wavelet_blstm_net_v11_d8k5(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v11_d8k3(
-        inputs,
-        params,
-        training,
-        name='model_v11_d8k3'
-):
-    """ conv 1D and BLSTM to make a prediction.
+def wavelet_blstm_net_v11_d8k3(inputs, params, training, name="model_v11_d8k3"):
+    """conv 1D and BLSTM to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -7328,11 +7494,10 @@ def wavelet_blstm_net_v11_d8k3(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v11') A name for the network.
     """
-    print('Using model V11 D8-K3 (Time-Domain)')
+    print("Using model V11 D8-K3 (Time-Domain)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -7344,9 +7509,11 @@ def wavelet_blstm_net_v11_d8k3(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -7360,7 +7527,8 @@ def wavelet_blstm_net_v11_d8k3(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -7371,7 +7539,8 @@ def wavelet_blstm_net_v11_d8k3(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -7382,7 +7551,8 @@ def wavelet_blstm_net_v11_d8k3(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=None,
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3a')
+            name="convblock_1d_3a",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -7393,7 +7563,8 @@ def wavelet_blstm_net_v11_d8k3(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3b')
+            name="convblock_1d_3b",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -7406,7 +7577,8 @@ def wavelet_blstm_net_v11_d8k3(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -7418,7 +7590,8 @@ def wavelet_blstm_net_v11_d8k3(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -7428,22 +7601,18 @@ def wavelet_blstm_net_v11_d8k3(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v11_outres(
-        inputs,
-        params,
-        training,
-        name='model_v11_outres'
-):
-    """ conv 1D and BLSTM to make a prediction.
+def wavelet_blstm_net_v11_outres(inputs, params, training, name="model_v11_outres"):
+    """conv 1D and BLSTM to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -7456,11 +7625,10 @@ def wavelet_blstm_net_v11_outres(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v11') A name for the network.
     """
-    print('Using model V11 Output Residual (Time-Domain)')
+    print("Using model V11 Output Residual (Time-Domain)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -7472,9 +7640,11 @@ def wavelet_blstm_net_v11_outres(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -7488,7 +7658,8 @@ def wavelet_blstm_net_v11_outres(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -7499,7 +7670,8 @@ def wavelet_blstm_net_v11_outres(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -7510,7 +7682,8 @@ def wavelet_blstm_net_v11_outres(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -7523,89 +7696,153 @@ def wavelet_blstm_net_v11_outres(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         # output residual
         # [batch_size, time_len, n_feats] -> [batch_size, time_len, 1, feats]
         outputs = tf.expand_dims(outputs, axis=2)
 
-        with tf.variable_scope('res_0'):
+        with tf.variable_scope("res_0"):
             outputs = tf.layers.conv2d(
-                inputs=outputs, filters=params[pkeys.OUTPUT_RESIDUAL_FC_SIZE],
-                kernel_size=1, activation=None, padding=constants.PAD_SAME,
-                kernel_initializer=tf.initializers.he_normal(), use_bias=False,
-                name="res_fc_0")
+                inputs=outputs,
+                filters=params[pkeys.OUTPUT_RESIDUAL_FC_SIZE],
+                kernel_size=1,
+                activation=None,
+                padding=constants.PAD_SAME,
+                kernel_initializer=tf.initializers.he_normal(),
+                use_bias=False,
+                name="res_fc_0",
+            )
             outputs = layers.batchnorm_layer(
-                outputs, 'res_bn_0', batchnorm=params[pkeys.TYPE_BATCHNORM],
-                training=training, scale=False)
+                outputs,
+                "res_bn_0",
+                batchnorm=params[pkeys.TYPE_BATCHNORM],
+                training=training,
+                scale=False,
+            )
             outputs = tf.nn.relu(outputs)
 
-        with tf.variable_scope('res_1'):
+        with tf.variable_scope("res_1"):
             shortcut = outputs
             outputs = tf.layers.conv2d(
-                inputs=outputs, filters=params[pkeys.OUTPUT_RESIDUAL_FC_SIZE],
-                kernel_size=1, activation=None, padding=constants.PAD_SAME,
-                kernel_initializer=tf.initializers.he_normal(), use_bias=False,
-                name="res_fc_1a")
+                inputs=outputs,
+                filters=params[pkeys.OUTPUT_RESIDUAL_FC_SIZE],
+                kernel_size=1,
+                activation=None,
+                padding=constants.PAD_SAME,
+                kernel_initializer=tf.initializers.he_normal(),
+                use_bias=False,
+                name="res_fc_1a",
+            )
             outputs = layers.batchnorm_layer(
-                outputs, 'res_bn_1', batchnorm=params[pkeys.TYPE_BATCHNORM],
-                training=training, scale=False)
+                outputs,
+                "res_bn_1",
+                batchnorm=params[pkeys.TYPE_BATCHNORM],
+                training=training,
+                scale=False,
+            )
             outputs = tf.nn.relu(outputs)
             outputs = tf.layers.conv2d(
-                inputs=outputs, filters=params[pkeys.OUTPUT_RESIDUAL_FC_SIZE],
-                kernel_size=1, activation=None, padding=constants.PAD_SAME,
-                kernel_initializer=tf.initializers.he_normal(), use_bias=False,
-                name="res_fc_1b")
+                inputs=outputs,
+                filters=params[pkeys.OUTPUT_RESIDUAL_FC_SIZE],
+                kernel_size=1,
+                activation=None,
+                padding=constants.PAD_SAME,
+                kernel_initializer=tf.initializers.he_normal(),
+                use_bias=False,
+                name="res_fc_1b",
+            )
             outputs = outputs + shortcut
 
-        with tf.variable_scope('res_2'):
+        with tf.variable_scope("res_2"):
             shortcut = outputs
             outputs = layers.batchnorm_layer(
-                outputs, 'res_bn_2a', batchnorm=params[pkeys.TYPE_BATCHNORM],
-                training=training, scale=False)
+                outputs,
+                "res_bn_2a",
+                batchnorm=params[pkeys.TYPE_BATCHNORM],
+                training=training,
+                scale=False,
+            )
             outputs = tf.nn.relu(outputs)
             outputs = tf.layers.conv2d(
-                inputs=outputs, filters=params[pkeys.OUTPUT_RESIDUAL_FC_SIZE],
-                kernel_size=1, activation=None, padding=constants.PAD_SAME,
-                kernel_initializer=tf.initializers.he_normal(), use_bias=False,
-                name="res_fc_2a")
+                inputs=outputs,
+                filters=params[pkeys.OUTPUT_RESIDUAL_FC_SIZE],
+                kernel_size=1,
+                activation=None,
+                padding=constants.PAD_SAME,
+                kernel_initializer=tf.initializers.he_normal(),
+                use_bias=False,
+                name="res_fc_2a",
+            )
             outputs = layers.batchnorm_layer(
-                outputs, 'res_bn_2b', batchnorm=params[pkeys.TYPE_BATCHNORM],
-                training=training, scale=False)
+                outputs,
+                "res_bn_2b",
+                batchnorm=params[pkeys.TYPE_BATCHNORM],
+                training=training,
+                scale=False,
+            )
             outputs = tf.nn.relu(outputs)
             outputs = tf.layers.conv2d(
-                inputs=outputs, filters=params[pkeys.OUTPUT_RESIDUAL_FC_SIZE],
-                kernel_size=1, activation=None, padding=constants.PAD_SAME,
-                kernel_initializer=tf.initializers.he_normal(), use_bias=False,
-                name="res_fc_2b")
+                inputs=outputs,
+                filters=params[pkeys.OUTPUT_RESIDUAL_FC_SIZE],
+                kernel_size=1,
+                activation=None,
+                padding=constants.PAD_SAME,
+                kernel_initializer=tf.initializers.he_normal(),
+                use_bias=False,
+                name="res_fc_2b",
+            )
             outputs = outputs + shortcut
 
-        with tf.variable_scope('res_3'):
+        with tf.variable_scope("res_3"):
             shortcut = outputs
             outputs = layers.batchnorm_layer(
-                outputs, 'res_bn_3a', batchnorm=params[pkeys.TYPE_BATCHNORM],
-                training=training, scale=False)
+                outputs,
+                "res_bn_3a",
+                batchnorm=params[pkeys.TYPE_BATCHNORM],
+                training=training,
+                scale=False,
+            )
             outputs = tf.nn.relu(outputs)
             outputs = tf.layers.conv2d(
-                inputs=outputs, filters=params[pkeys.OUTPUT_RESIDUAL_FC_SIZE],
-                kernel_size=1, activation=None, padding=constants.PAD_SAME,
-                kernel_initializer=tf.initializers.he_normal(), use_bias=False,
-                name="res_fc_3a")
+                inputs=outputs,
+                filters=params[pkeys.OUTPUT_RESIDUAL_FC_SIZE],
+                kernel_size=1,
+                activation=None,
+                padding=constants.PAD_SAME,
+                kernel_initializer=tf.initializers.he_normal(),
+                use_bias=False,
+                name="res_fc_3a",
+            )
             outputs = layers.batchnorm_layer(
-                outputs, 'res_bn_3b', batchnorm=params[pkeys.TYPE_BATCHNORM],
-                training=training, scale=False)
+                outputs,
+                "res_bn_3b",
+                batchnorm=params[pkeys.TYPE_BATCHNORM],
+                training=training,
+                scale=False,
+            )
             outputs = tf.nn.relu(outputs)
             outputs = tf.layers.conv2d(
-                inputs=outputs, filters=params[pkeys.OUTPUT_RESIDUAL_FC_SIZE],
-                kernel_size=1, activation=None, padding=constants.PAD_SAME,
-                kernel_initializer=tf.initializers.he_normal(), use_bias=False,
-                name="res_fc_3b")
+                inputs=outputs,
+                filters=params[pkeys.OUTPUT_RESIDUAL_FC_SIZE],
+                kernel_size=1,
+                activation=None,
+                padding=constants.PAD_SAME,
+                kernel_initializer=tf.initializers.he_normal(),
+                use_bias=False,
+                name="res_fc_3b",
+            )
             outputs = outputs + shortcut
 
-        with tf.variable_scope('res_end'):
+        with tf.variable_scope("res_end"):
             outputs = layers.batchnorm_layer(
-                outputs, 'res_bn_4', batchnorm=params[pkeys.TYPE_BATCHNORM],
-                training=training, scale=False)
+                outputs,
+                "res_bn_4",
+                batchnorm=params[pkeys.TYPE_BATCHNORM],
+                training=training,
+                scale=False,
+            )
             outputs = tf.nn.relu(outputs)
             outputs = tf.squeeze(outputs, axis=2, name="res_squeeze")
 
@@ -7617,7 +7854,8 @@ def wavelet_blstm_net_v11_outres(
                 kernel_init=tf.initializers.he_normal(),
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -7627,22 +7865,18 @@ def wavelet_blstm_net_v11_outres(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v11_outplus(
-        inputs,
-        params,
-        training,
-        name='model_v11_outplus'
-):
-    """ conv 1D and BLSTM to make a prediction.
+def wavelet_blstm_net_v11_outplus(inputs, params, training, name="model_v11_outplus"):
+    """conv 1D and BLSTM to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -7655,11 +7889,10 @@ def wavelet_blstm_net_v11_outplus(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v11') A name for the network.
     """
-    print('Using model V11 Output Plus (Time-Domain)')
+    print("Using model V11 Output Plus (Time-Domain)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -7671,9 +7904,11 @@ def wavelet_blstm_net_v11_outplus(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -7687,7 +7922,8 @@ def wavelet_blstm_net_v11_outplus(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -7698,7 +7934,8 @@ def wavelet_blstm_net_v11_outplus(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -7709,7 +7946,8 @@ def wavelet_blstm_net_v11_outplus(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -7722,50 +7960,73 @@ def wavelet_blstm_net_v11_outplus(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         bn_at_fc = params[pkeys.OUTPUT_USE_BN]
         drop_at_fc = params[pkeys.OUTPUT_USE_DROP]
 
-        with tf.variable_scope('fc_1'):
+        with tf.variable_scope("fc_1"):
             if drop_at_fc:
                 outputs = layers.dropout_layer(
-                    outputs, 'drop', drop_rate=params[pkeys.DROP_RATE_HIDDEN],
+                    outputs,
+                    "drop",
+                    drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                     dropout=params[pkeys.TYPE_DROPOUT],
-                    training=training)
+                    training=training,
+                )
             outputs = tf.expand_dims(outputs, axis=2)
             use_bias = not bn_at_fc
             outputs = tf.layers.conv2d(
-                inputs=outputs, filters=params[pkeys.FC_UNITS_1],
-                kernel_size=1, activation=None, padding=constants.PAD_SAME,
+                inputs=outputs,
+                filters=params[pkeys.FC_UNITS_1],
+                kernel_size=1,
+                activation=None,
+                padding=constants.PAD_SAME,
                 kernel_initializer=tf.initializers.he_normal(),
                 use_bias=use_bias,
-                name="conv1")
+                name="conv1",
+            )
             if bn_at_fc:
                 outputs = layers.batchnorm_layer(
-                    outputs, 'bn', batchnorm=params[pkeys.TYPE_BATCHNORM],
-                    training=training, scale=False)
+                    outputs,
+                    "bn",
+                    batchnorm=params[pkeys.TYPE_BATCHNORM],
+                    training=training,
+                    scale=False,
+                )
             outputs = tf.nn.relu(outputs)
             outputs = tf.squeeze(outputs, axis=2, name="squeeze")
 
-        with tf.variable_scope('fc_2'):
+        with tf.variable_scope("fc_2"):
             if drop_at_fc:
                 outputs = layers.dropout_layer(
-                    outputs, 'drop', drop_rate=params[pkeys.DROP_RATE_HIDDEN],
+                    outputs,
+                    "drop",
+                    drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                     dropout=params[pkeys.TYPE_DROPOUT],
-                    training=training)
+                    training=training,
+                )
             outputs = tf.expand_dims(outputs, axis=2)
             use_bias = not bn_at_fc
             outputs = tf.layers.conv2d(
-                inputs=outputs, filters=params[pkeys.FC_UNITS_2],
-                kernel_size=1, activation=None, padding=constants.PAD_SAME,
+                inputs=outputs,
+                filters=params[pkeys.FC_UNITS_2],
+                kernel_size=1,
+                activation=None,
+                padding=constants.PAD_SAME,
                 kernel_initializer=tf.initializers.he_normal(),
                 use_bias=use_bias,
-                name="conv1")
+                name="conv1",
+            )
             if bn_at_fc:
                 outputs = layers.batchnorm_layer(
-                    outputs, 'bn', batchnorm=params[pkeys.TYPE_BATCHNORM],
-                    training=training, scale=False)
+                    outputs,
+                    "bn",
+                    batchnorm=params[pkeys.TYPE_BATCHNORM],
+                    training=training,
+                    scale=False,
+                )
             outputs = tf.nn.relu(outputs)
             outputs = tf.squeeze(outputs, axis=2, name="squeeze")
 
@@ -7777,22 +8038,18 @@ def wavelet_blstm_net_v11_outplus(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v11_shield(
-        inputs,
-        params,
-        training,
-        name='model_v11_shield'
-):
-    """ conv 1D and BLSTM to make a prediction.
+def wavelet_blstm_net_v11_shield(inputs, params, training, name="model_v11_shield"):
+    """conv 1D and BLSTM to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -7805,11 +8062,10 @@ def wavelet_blstm_net_v11_shield(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v11') A name for the network.
     """
-    print('Using model V11 LSTM Shielding (Time-Domain)')
+    print("Using model V11 LSTM Shielding (Time-Domain)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -7821,9 +8077,11 @@ def wavelet_blstm_net_v11_shield(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -7837,7 +8095,8 @@ def wavelet_blstm_net_v11_shield(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -7848,7 +8107,8 @@ def wavelet_blstm_net_v11_shield(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -7859,15 +8119,19 @@ def wavelet_blstm_net_v11_shield(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         shortcut = outputs
         lstm_down_factor = params[pkeys.SHIELD_LSTM_DOWN_FACTOR]
 
         if lstm_down_factor > 1:
             outputs = layers.downsampling_1d(
-                outputs, 'shield_down', lstm_down_factor,
-                params[pkeys.SHIELD_LSTM_TYPE_POOL])
+                outputs,
+                "shield_down",
+                lstm_down_factor,
+                params[pkeys.SHIELD_LSTM_TYPE_POOL],
+            )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -7880,41 +8144,57 @@ def wavelet_blstm_net_v11_shield(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if lstm_down_factor > 1:
             outputs = layers.upsampling_1d_linear(
-                outputs, 'shield_up', lstm_down_factor)
+                outputs, "shield_up", lstm_down_factor
+            )
 
         outputs = tf.concat([outputs, shortcut], axis=2)
 
-        with tf.variable_scope('fc_1'):
+        with tf.variable_scope("fc_1"):
             outputs = layers.dropout_layer(
-                outputs, 'drop', drop_rate=params[pkeys.DROP_RATE_HIDDEN],
+                outputs,
+                "drop",
+                drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 dropout=params[pkeys.TYPE_DROPOUT],
-                training=training)
+                training=training,
+            )
             outputs = tf.expand_dims(outputs, axis=2)
             outputs = tf.layers.conv2d(
-                inputs=outputs, filters=params[pkeys.FC_UNITS_1],
-                kernel_size=1, activation=None, padding=constants.PAD_SAME,
+                inputs=outputs,
+                filters=params[pkeys.FC_UNITS_1],
+                kernel_size=1,
+                activation=None,
+                padding=constants.PAD_SAME,
                 kernel_initializer=tf.initializers.he_normal(),
                 use_bias=True,
-                name="conv1")
+                name="conv1",
+            )
             outputs = tf.nn.relu(outputs)
             outputs = tf.squeeze(outputs, axis=2, name="squeeze")
 
-        with tf.variable_scope('fc_2'):
+        with tf.variable_scope("fc_2"):
             outputs = layers.dropout_layer(
-                outputs, 'drop', drop_rate=params[pkeys.DROP_RATE_HIDDEN],
+                outputs,
+                "drop",
+                drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 dropout=params[pkeys.TYPE_DROPOUT],
-                training=training)
+                training=training,
+            )
             outputs = tf.expand_dims(outputs, axis=2)
             outputs = tf.layers.conv2d(
-                inputs=outputs, filters=params[pkeys.FC_UNITS_2],
-                kernel_size=1, activation=None, padding=constants.PAD_SAME,
+                inputs=outputs,
+                filters=params[pkeys.FC_UNITS_2],
+                kernel_size=1,
+                activation=None,
+                padding=constants.PAD_SAME,
                 kernel_initializer=tf.initializers.he_normal(),
                 use_bias=True,
-                name="conv1")
+                name="conv1",
+            )
             outputs = tf.nn.relu(outputs)
             outputs = tf.squeeze(outputs, axis=2, name="squeeze")
 
@@ -7926,22 +8206,18 @@ def wavelet_blstm_net_v11_shield(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v11_lite(
-        inputs,
-        params,
-        training,
-        name='model_v11_lite'
-):
-    """ conv 1D and BLSTM to make a prediction.
+def wavelet_blstm_net_v11_lite(inputs, params, training, name="model_v11_lite"):
+    """conv 1D and BLSTM to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -7954,11 +8230,10 @@ def wavelet_blstm_net_v11_lite(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v11') A name for the network.
     """
-    print('Using model V11 LITE (Time-Domain)')
+    print("Using model V11 LITE (Time-Domain)")
     with tf.variable_scope(name):
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -7970,9 +8245,11 @@ def wavelet_blstm_net_v11_lite(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -7985,7 +8262,8 @@ def wavelet_blstm_net_v11_lite(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_0')
+            name="convblock_1d_0",
+        )
         outputs = layers.conv1d_prebn(
             outputs,
             params[pkeys.TIME_CONV_FILTERS_1],
@@ -7993,7 +8271,8 @@ def wavelet_blstm_net_v11_lite(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
         outputs = layers.conv1d_prebn_block(
             outputs,
             params[pkeys.TIME_CONV_FILTERS_2],
@@ -8001,7 +8280,8 @@ def wavelet_blstm_net_v11_lite(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
         outputs = layers.conv1d_prebn_block(
             outputs,
             params[pkeys.TIME_CONV_FILTERS_3],
@@ -8009,7 +8289,8 @@ def wavelet_blstm_net_v11_lite(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=None,
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -8022,7 +8303,8 @@ def wavelet_blstm_net_v11_lite(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -8034,7 +8316,8 @@ def wavelet_blstm_net_v11_lite(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -8044,22 +8327,18 @@ def wavelet_blstm_net_v11_lite(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v11_norm(
-        inputs,
-        params,
-        training,
-        name='model_v11_norm'
-):
-    """ conv 1D and BLSTM to make a prediction.
+def wavelet_blstm_net_v11_norm(inputs, params, training, name="model_v11_norm"):
+    """conv 1D and BLSTM to make a prediction.
 
     This models has a standard convolutional stage on time-domain
     (pre-activation BN). After this, the outputs is passed to
@@ -8072,23 +8351,22 @@ def wavelet_blstm_net_v11_norm(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v11') A name for the network.
     """
-    print('Using model V11 NORM (Time-Domain)')
+    print("Using model V11 NORM (Time-Domain)")
     with tf.variable_scope(name):
 
         # Normalize inputs
-        with tf.variable_scope('normalization'):
+        with tf.variable_scope("normalization"):
             # Input shape [batch, time_len]
             inputs_mean = tf.reduce_mean(inputs, axis=1)
             inputs_mean = tf.expand_dims(inputs_mean, axis=1)
             inputs = inputs - inputs_mean  # zero-mean
             # for a zero-mean x, variance is just the mean of x^2
-            inputs_variance = tf.reduce_mean(inputs ** 2, axis=1)
+            inputs_variance = tf.reduce_mean(inputs**2, axis=1)
             inputs_std = tf.sqrt(inputs_variance + 1e-6)
             inputs_std = tf.expand_dims(inputs_std, axis=1)
             inputs = inputs / inputs_std
 
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         if border_crop <= 0:
             end_crop = None
@@ -8100,9 +8378,11 @@ def wavelet_blstm_net_v11_norm(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -8115,7 +8395,8 @@ def wavelet_blstm_net_v11_norm(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -8124,7 +8405,8 @@ def wavelet_blstm_net_v11_norm(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -8133,7 +8415,8 @@ def wavelet_blstm_net_v11_norm(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -8146,7 +8429,8 @@ def wavelet_blstm_net_v11_norm(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -8158,7 +8442,8 @@ def wavelet_blstm_net_v11_norm(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -8168,21 +8453,17 @@ def wavelet_blstm_net_v11_norm(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v11_pr_1(
-        inputs,
-        params,
-        training,
-        name='model_v11_pr_1'
-):
+def wavelet_blstm_net_v11_pr_1(inputs, params, training, name="model_v11_pr_1"):
     """
     Args:
         inputs: (2d tensor) input tensor of shape [batch_size, time_len]
@@ -8190,10 +8471,9 @@ def wavelet_blstm_net_v11_pr_1(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string) A name for the network.
     """
-    print('Using model V11 + Power Ratios Fixed from literature (v11_pr_1)')
+    print("Using model V11 + Power Ratios Fixed from literature (v11_pr_1)")
     with tf.variable_scope(name):
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         # Compute power ratios
         power_ratios = layers.power_ratio_literature_fixed_layer(
             inputs,
@@ -8206,7 +8486,8 @@ def wavelet_blstm_net_v11_pr_1(
             border_crop=border_crop,
             return_power_bands=params[pkeys.PR_RETURN_BANDS],
             return_power_ratios=params[pkeys.PR_RETURN_RATIOS],
-            use_log=params[pkeys.USE_LOG])
+            use_log=params[pkeys.USE_LOG],
+        )
 
         start_crop = border_crop
         if border_crop <= 0:
@@ -8219,9 +8500,11 @@ def wavelet_blstm_net_v11_pr_1(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # Now we concatenate with power ratios at the input
         outputs = tf.concat([outputs, power_ratios], axis=2)
@@ -8237,7 +8520,8 @@ def wavelet_blstm_net_v11_pr_1(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -8246,7 +8530,8 @@ def wavelet_blstm_net_v11_pr_1(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -8255,7 +8540,8 @@ def wavelet_blstm_net_v11_pr_1(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -8268,7 +8554,8 @@ def wavelet_blstm_net_v11_pr_1(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -8280,7 +8567,8 @@ def wavelet_blstm_net_v11_pr_1(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -8290,21 +8578,17 @@ def wavelet_blstm_net_v11_pr_1(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v11_pr_2p(
-        inputs,
-        params,
-        training,
-        name='model_v11_pr_2p'
-):
+def wavelet_blstm_net_v11_pr_2p(inputs, params, training, name="model_v11_pr_2p"):
     """
     Args:
         inputs: (2d tensor) input tensor of shape [batch_size, time_len]
@@ -8312,10 +8596,9 @@ def wavelet_blstm_net_v11_pr_2p(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string) A name for the network.
     """
-    print('Using model V11 + Power Ratios Fixed from literature (v11_pr_2p)')
+    print("Using model V11 + Power Ratios Fixed from literature (v11_pr_2p)")
     with tf.variable_scope(name):
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         # Compute power ratios
         power_ratios = layers.power_ratio_literature_fixed_layer(
             inputs,
@@ -8328,9 +8611,11 @@ def wavelet_blstm_net_v11_pr_2p(
             border_crop=border_crop,
             return_power_bands=params[pkeys.PR_RETURN_BANDS],
             return_power_ratios=params[pkeys.PR_RETURN_RATIOS],
-            use_log=params[pkeys.USE_LOG])
+            use_log=params[pkeys.USE_LOG],
+        )
         power_ratios = tf.keras.layers.AveragePooling1D(
-            pool_size=params[pkeys.TOTAL_DOWNSAMPLING_FACTOR])(power_ratios)
+            pool_size=params[pkeys.TOTAL_DOWNSAMPLING_FACTOR]
+        )(power_ratios)
 
         start_crop = border_crop
         if border_crop <= 0:
@@ -8343,9 +8628,11 @@ def wavelet_blstm_net_v11_pr_2p(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -8358,7 +8645,8 @@ def wavelet_blstm_net_v11_pr_2p(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -8367,7 +8655,8 @@ def wavelet_blstm_net_v11_pr_2p(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -8376,7 +8665,8 @@ def wavelet_blstm_net_v11_pr_2p(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Now we concatenate with power ratios at output of CNN
         outputs = tf.concat([outputs, power_ratios], axis=2)
@@ -8392,7 +8682,8 @@ def wavelet_blstm_net_v11_pr_2p(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -8404,7 +8695,8 @@ def wavelet_blstm_net_v11_pr_2p(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -8414,21 +8706,17 @@ def wavelet_blstm_net_v11_pr_2p(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v11_pr_3p(
-        inputs,
-        params,
-        training,
-        name='model_v11_pr_3p'
-):
+def wavelet_blstm_net_v11_pr_3p(inputs, params, training, name="model_v11_pr_3p"):
     """
     Args:
         inputs: (2d tensor) input tensor of shape [batch_size, time_len]
@@ -8436,10 +8724,9 @@ def wavelet_blstm_net_v11_pr_3p(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string) A name for the network.
     """
-    print('Using model V11 + Power Ratios Fixed from literature (v11_pr_3p)')
+    print("Using model V11 + Power Ratios Fixed from literature (v11_pr_3p)")
     with tf.variable_scope(name):
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         # Compute power ratios
         power_ratios = layers.power_ratio_literature_fixed_layer(
             inputs,
@@ -8452,9 +8739,11 @@ def wavelet_blstm_net_v11_pr_3p(
             border_crop=border_crop,
             return_power_bands=params[pkeys.PR_RETURN_BANDS],
             return_power_ratios=params[pkeys.PR_RETURN_RATIOS],
-            use_log=params[pkeys.USE_LOG])
+            use_log=params[pkeys.USE_LOG],
+        )
         power_ratios = tf.keras.layers.AveragePooling1D(
-            pool_size=params[pkeys.TOTAL_DOWNSAMPLING_FACTOR])(power_ratios)
+            pool_size=params[pkeys.TOTAL_DOWNSAMPLING_FACTOR]
+        )(power_ratios)
 
         start_crop = border_crop
         if border_crop <= 0:
@@ -8467,9 +8756,11 @@ def wavelet_blstm_net_v11_pr_3p(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -8482,7 +8773,8 @@ def wavelet_blstm_net_v11_pr_3p(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -8491,7 +8783,8 @@ def wavelet_blstm_net_v11_pr_3p(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -8500,7 +8793,8 @@ def wavelet_blstm_net_v11_pr_3p(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -8513,7 +8807,8 @@ def wavelet_blstm_net_v11_pr_3p(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         # Now we concatenate with power ratios at output of LSTM
         outputs = tf.concat([outputs, power_ratios], axis=2)
@@ -8528,7 +8823,8 @@ def wavelet_blstm_net_v11_pr_3p(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -8538,21 +8834,17 @@ def wavelet_blstm_net_v11_pr_3p(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v11_pr_2c(
-        inputs,
-        params,
-        training,
-        name='model_v11_pr_2c'
-):
+def wavelet_blstm_net_v11_pr_2c(inputs, params, training, name="model_v11_pr_2c"):
     """
     Args:
         inputs: (2d tensor) input tensor of shape [batch_size, time_len]
@@ -8560,10 +8852,9 @@ def wavelet_blstm_net_v11_pr_2c(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string) A name for the network.
     """
-    print('Using model V11 + Power Ratios Fixed from literature (v11_pr_2c)')
+    print("Using model V11 + Power Ratios Fixed from literature (v11_pr_2c)")
     with tf.variable_scope(name):
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         # Compute power ratios
         power_ratios = layers.power_ratio_literature_fixed_layer(
             inputs,
@@ -8576,7 +8867,8 @@ def wavelet_blstm_net_v11_pr_2c(
             border_crop=border_crop,
             return_power_bands=params[pkeys.PR_RETURN_BANDS],
             return_power_ratios=params[pkeys.PR_RETURN_RATIOS],
-            use_log=params[pkeys.USE_LOG])
+            use_log=params[pkeys.USE_LOG],
+        )
         # Convolutional stage (standard feed-forward)
         power_ratios = layers.conv1d_prebn_block(
             power_ratios,
@@ -8586,7 +8878,8 @@ def wavelet_blstm_net_v11_pr_2c(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='pr_convblock_1d_1')
+            name="pr_convblock_1d_1",
+        )
         power_ratios = layers.conv1d_prebn_block(
             power_ratios,
             params[pkeys.TIME_CONV_FILTERS_2],
@@ -8594,7 +8887,8 @@ def wavelet_blstm_net_v11_pr_2c(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='pr_convblock_1d_2')
+            name="pr_convblock_1d_2",
+        )
         power_ratios = layers.conv1d_prebn_block(
             power_ratios,
             params[pkeys.TIME_CONV_FILTERS_3],
@@ -8602,7 +8896,8 @@ def wavelet_blstm_net_v11_pr_2c(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='pr_convblock_1d_3')
+            name="pr_convblock_1d_3",
+        )
 
         # -----------------------------------------------------------
 
@@ -8617,9 +8912,11 @@ def wavelet_blstm_net_v11_pr_2c(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -8632,7 +8929,8 @@ def wavelet_blstm_net_v11_pr_2c(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -8641,7 +8939,8 @@ def wavelet_blstm_net_v11_pr_2c(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -8650,7 +8949,8 @@ def wavelet_blstm_net_v11_pr_2c(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Now we concatenate with power ratios at output of CNN
         outputs = tf.concat([outputs, power_ratios], axis=2)
@@ -8666,7 +8966,8 @@ def wavelet_blstm_net_v11_pr_2c(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -8678,7 +8979,8 @@ def wavelet_blstm_net_v11_pr_2c(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -8688,21 +8990,17 @@ def wavelet_blstm_net_v11_pr_2c(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v11_pr_3c(
-        inputs,
-        params,
-        training,
-        name='model_v11_pr_3c'
-):
+def wavelet_blstm_net_v11_pr_3c(inputs, params, training, name="model_v11_pr_3c"):
     """
     Args:
         inputs: (2d tensor) input tensor of shape [batch_size, time_len]
@@ -8710,10 +9008,9 @@ def wavelet_blstm_net_v11_pr_3c(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string) A name for the network.
     """
-    print('Using model V11 + Power Ratios Fixed from literature (v11_pr_3c)')
+    print("Using model V11 + Power Ratios Fixed from literature (v11_pr_3c)")
     with tf.variable_scope(name):
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         # Compute power ratios
         power_ratios = layers.power_ratio_literature_fixed_layer(
             inputs,
@@ -8726,7 +9023,8 @@ def wavelet_blstm_net_v11_pr_3c(
             border_crop=border_crop,
             return_power_bands=params[pkeys.PR_RETURN_BANDS],
             return_power_ratios=params[pkeys.PR_RETURN_RATIOS],
-            use_log=params[pkeys.USE_LOG])
+            use_log=params[pkeys.USE_LOG],
+        )
         # Convolutional stage (standard feed-forward)
         power_ratios = layers.conv1d_prebn_block(
             power_ratios,
@@ -8736,7 +9034,8 @@ def wavelet_blstm_net_v11_pr_3c(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='pr_convblock_1d_1')
+            name="pr_convblock_1d_1",
+        )
         power_ratios = layers.conv1d_prebn_block(
             power_ratios,
             params[pkeys.TIME_CONV_FILTERS_2],
@@ -8744,7 +9043,8 @@ def wavelet_blstm_net_v11_pr_3c(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='pr_convblock_1d_2')
+            name="pr_convblock_1d_2",
+        )
         power_ratios = layers.conv1d_prebn_block(
             power_ratios,
             params[pkeys.TIME_CONV_FILTERS_3],
@@ -8752,7 +9052,8 @@ def wavelet_blstm_net_v11_pr_3c(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='pr_convblock_1d_3')
+            name="pr_convblock_1d_3",
+        )
 
         # -----------------------------------------------------------
 
@@ -8767,9 +9068,11 @@ def wavelet_blstm_net_v11_pr_3c(
 
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -8782,7 +9085,8 @@ def wavelet_blstm_net_v11_pr_3c(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -8791,7 +9095,8 @@ def wavelet_blstm_net_v11_pr_3c(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -8800,7 +9105,8 @@ def wavelet_blstm_net_v11_pr_3c(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -8813,7 +9119,8 @@ def wavelet_blstm_net_v11_pr_3c(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         # Now we concatenate with power ratios at output of LSTM
         outputs = tf.concat([outputs, power_ratios], axis=2)
@@ -8828,7 +9135,8 @@ def wavelet_blstm_net_v11_pr_3c(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -8838,21 +9146,17 @@ def wavelet_blstm_net_v11_pr_3c(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v11_llc_stft(
-        inputs,
-        params,
-        training,
-        name='model_v11_llc_stft'
-):
+def wavelet_blstm_net_v11_llc_stft(inputs, params, training, name="model_v11_llc_stft"):
     """
     Args:
         inputs: (2d tensor) input tensor of shape [batch_size, time_len]
@@ -8860,25 +9164,31 @@ def wavelet_blstm_net_v11_llc_stft(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string) A name for the network.
     """
-    print('Using model V11 + LLC-STFT')
+    print("Using model V11 + LLC-STFT")
     with tf.variable_scope(name):
         # We assume the border is very big
         inputs = tf.expand_dims(inputs, axis=2)
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
-        with tf.variable_scope('stft_module'):
+        with tf.variable_scope("stft_module"):
             window_length = params[pkeys.LLC_STFT_N_SAMPLES]
             outputs_llc = tf.signal.stft(
-                outputs[:, :, 0], frame_length=window_length,
-                frame_step=window_length // 2, name="stft")
+                outputs[:, :, 0],
+                frame_length=window_length,
+                frame_step=window_length // 2,
+                name="stft",
+            )
             norm_factor = 2 / np.sum(np.hanning(window_length))
             outputs_llc = tf.abs(outputs_llc) * norm_factor  # complex to real
             frequency_axis = np.linspace(
-                0, params[pkeys.FS] // 2, window_length // 2 + 1)
+                0, params[pkeys.FS] // 2, window_length // 2 + 1
+            )
             # Drop O Hz
             outputs_llc = outputs_llc[..., 1:]
             frequency_axis = frequency_axis[1:]
@@ -8888,16 +9198,21 @@ def wavelet_blstm_net_v11_llc_stft(
             pool_size = params[pkeys.LLC_STFT_FREQ_POOL]
             if pool_size is not None:
                 outputs_llc = outputs_llc[..., tf.newaxis]
-                outputs_llc = tf.keras.layers.AvgPool2D(pool_size=(1, pool_size))(outputs_llc)
+                outputs_llc = tf.keras.layers.AvgPool2D(pool_size=(1, pool_size))(
+                    outputs_llc
+                )
                 outputs_llc = outputs_llc[..., 0]
-                frequency_axis = frequency_axis.reshape((-1, pool_size)).mean(axis=1).flatten()
+                frequency_axis = (
+                    frequency_axis.reshape((-1, pool_size)).mean(axis=1).flatten()
+                )
             # Now we remove frequencies above 35Hz (our preprocessing range)
             remove_idx = np.where(frequency_axis > 35)[0][0]
             outputs_llc = outputs_llc[..., :remove_idx]
             if params[pkeys.LLC_STFT_USE_LOG]:
                 outputs_llc = tf.log(outputs_llc + 1e-6)
             outputs_llc = tf.layers.batch_normalization(
-                inputs=outputs_llc, training=training, name='bn_stft')
+                inputs=outputs_llc, training=training, name="bn_stft"
+            )
             outputs_llc = tf.keras.layers.GlobalAvgPool1D()(outputs_llc)
             # output shape [batch, freq]
             # Now the dense layer
@@ -8905,16 +9220,19 @@ def wavelet_blstm_net_v11_llc_stft(
             if n_hid > 0:
                 outputs_llc = tf.keras.layers.Dense(n_hid)(outputs_llc)
                 outputs_llc = tf.layers.batch_normalization(
-                    inputs=outputs_llc, training=training, name='bn_stft_hid')
+                    inputs=outputs_llc, training=training, name="bn_stft_hid"
+                )
                 outputs_llc = tf.nn.relu(outputs_llc)
                 outputs_llc = tf.layers.dropout(
-                    outputs_llc, training=training, rate=params[pkeys.LLC_STFT_DROP_RATE])
+                    outputs_llc,
+                    training=training,
+                    rate=params[pkeys.LLC_STFT_DROP_RATE],
+                )
             # Now we are ready to produce linear projections of this vector
 
         # -----------------------------------------------------------
         # Now the convolutional stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         end_crop = (-border_crop) if (border_crop > 0) else None
         outputs = outputs[:, start_crop:end_crop, :]
@@ -8931,7 +9249,8 @@ def wavelet_blstm_net_v11_llc_stft(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block_with_context(
             outputs,
@@ -8941,7 +9260,8 @@ def wavelet_blstm_net_v11_llc_stft(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block_with_context(
             outputs,
@@ -8951,7 +9271,8 @@ def wavelet_blstm_net_v11_llc_stft(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -8964,7 +9285,8 @@ def wavelet_blstm_net_v11_llc_stft(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -8976,7 +9298,8 @@ def wavelet_blstm_net_v11_llc_stft(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -8986,20 +9309,18 @@ def wavelet_blstm_net_v11_llc_stft(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
 def wavelet_blstm_net_v11_llc_stft_1(
-        inputs,
-        params,
-        training,
-        name='model_v11_llc_stft_1'
+    inputs, params, training, name="model_v11_llc_stft_1"
 ):
     """
     Args:
@@ -9008,55 +9329,63 @@ def wavelet_blstm_net_v11_llc_stft_1(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string) A name for the network.
     """
-    print('Using model V11 + LLC-STFT 1 (only 3rd conv block)')
+    print("Using model V11 + LLC-STFT 1 (only 3rd conv block)")
     with tf.variable_scope(name):
         # We assume the border is very big
         inputs = tf.expand_dims(inputs, axis=2)
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
-        with tf.variable_scope('stft_module'):
+        with tf.variable_scope("stft_module"):
             window_length = params[pkeys.LLC_STFT_N_SAMPLES]
             use_log = params[pkeys.LLC_STFT_USE_LOG]
             n_hidden = params[pkeys.LLC_STFT_N_HIDDEN]
             drop_rate = params[pkeys.LLC_STFT_DROP_RATE]
 
             outputs_llc = tf.signal.stft(
-                outputs[:, :, 0], frame_length=window_length,
-                frame_step=window_length // 2, name="stft")
+                outputs[:, :, 0],
+                frame_length=window_length,
+                frame_step=window_length // 2,
+                name="stft",
+            )
             norm_factor = 2 / np.sum(np.hanning(window_length))
             outputs_llc = tf.abs(outputs_llc) * norm_factor  # complex to real
             # Drop frequencies outside [0.5, 30] Hz
             frequency_axis = np.linspace(
-                0, params[pkeys.FS] // 2, window_length // 2 + 1)
+                0, params[pkeys.FS] // 2, window_length // 2 + 1
+            )
             lower_idx = np.where(frequency_axis < 0.5)[0][-1]
             upper_idx = np.where(frequency_axis > 30)[0][0]
-            outputs_llc = outputs_llc[..., (lower_idx + 1):upper_idx]
+            outputs_llc = outputs_llc[..., (lower_idx + 1) : upper_idx]
             # Optional logarithm
             outputs_llc = tf.log(outputs_llc + 1e-6) if use_log else outputs_llc
             # BN and global avg pooling -> [batch, freq]
             outputs_llc = tf.layers.batch_normalization(
-                inputs=outputs_llc, training=training, name='bn_stft')
+                inputs=outputs_llc, training=training, name="bn_stft"
+            )
             outputs_llc = tf.keras.layers.GlobalAvgPool1D()(outputs_llc)
             # First dense layer
             outputs_llc = tf.layers.dropout(
-                outputs_llc, training=training, rate=drop_rate)
+                outputs_llc, training=training, rate=drop_rate
+            )
             outputs_llc = tf.keras.layers.Dense(n_hidden)(outputs_llc)
             outputs_llc = tf.nn.relu(outputs_llc)
             # Second dense layer
             outputs_llc = tf.layers.dropout(
-                outputs_llc, training=training, rate=drop_rate)
+                outputs_llc, training=training, rate=drop_rate
+            )
             outputs_llc = tf.keras.layers.Dense(n_hidden)(outputs_llc)
             outputs_llc = tf.nn.relu(outputs_llc)
             # Now we are ready to produce linear projections of this vector
 
         # -----------------------------------------------------------
         # Now the convolutional stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         end_crop = (-border_crop) if (border_crop > 0) else None
         outputs = outputs[:, start_crop:end_crop, :]
@@ -9072,7 +9401,8 @@ def wavelet_blstm_net_v11_llc_stft_1(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -9081,7 +9411,8 @@ def wavelet_blstm_net_v11_llc_stft_1(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block_with_context(
             outputs,
@@ -9091,7 +9422,8 @@ def wavelet_blstm_net_v11_llc_stft_1(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -9104,7 +9436,8 @@ def wavelet_blstm_net_v11_llc_stft_1(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -9116,7 +9449,8 @@ def wavelet_blstm_net_v11_llc_stft_1(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -9126,20 +9460,18 @@ def wavelet_blstm_net_v11_llc_stft_1(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
 def wavelet_blstm_net_v11_llc_stft_2(
-        inputs,
-        params,
-        training,
-        name='model_v11_llc_stft_2'
+    inputs, params, training, name="model_v11_llc_stft_2"
 ):
     """
     Args:
@@ -9148,55 +9480,63 @@ def wavelet_blstm_net_v11_llc_stft_2(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string) A name for the network.
     """
-    print('Using model V11 + LLC-STFT 2 (first FC)')
+    print("Using model V11 + LLC-STFT 2 (first FC)")
     with tf.variable_scope(name):
         # We assume the border is very big
         inputs = tf.expand_dims(inputs, axis=2)
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
-        with tf.variable_scope('stft_module'):
+        with tf.variable_scope("stft_module"):
             window_length = params[pkeys.LLC_STFT_N_SAMPLES]
             use_log = params[pkeys.LLC_STFT_USE_LOG]
             n_hidden = params[pkeys.LLC_STFT_N_HIDDEN]
             drop_rate = params[pkeys.LLC_STFT_DROP_RATE]
 
             outputs_llc = tf.signal.stft(
-                outputs[:, :, 0], frame_length=window_length,
-                frame_step=window_length // 2, name="stft")
+                outputs[:, :, 0],
+                frame_length=window_length,
+                frame_step=window_length // 2,
+                name="stft",
+            )
             norm_factor = 2 / np.sum(np.hanning(window_length))
             outputs_llc = tf.abs(outputs_llc) * norm_factor  # complex to real
             # Drop frequencies outside [0.5, 30] Hz
             frequency_axis = np.linspace(
-                0, params[pkeys.FS] // 2, window_length // 2 + 1)
+                0, params[pkeys.FS] // 2, window_length // 2 + 1
+            )
             lower_idx = np.where(frequency_axis < 0.5)[0][-1]
             upper_idx = np.where(frequency_axis > 30)[0][0]
-            outputs_llc = outputs_llc[..., (lower_idx + 1):upper_idx]
+            outputs_llc = outputs_llc[..., (lower_idx + 1) : upper_idx]
             # Optional logarithm
             outputs_llc = tf.log(outputs_llc + 1e-6) if use_log else outputs_llc
             # BN and global avg pooling -> [batch, freq]
             outputs_llc = tf.layers.batch_normalization(
-                inputs=outputs_llc, training=training, name='bn_stft')
+                inputs=outputs_llc, training=training, name="bn_stft"
+            )
             outputs_llc = tf.keras.layers.GlobalAvgPool1D()(outputs_llc)
             # First dense layer
             outputs_llc = tf.layers.dropout(
-                outputs_llc, training=training, rate=drop_rate)
+                outputs_llc, training=training, rate=drop_rate
+            )
             outputs_llc = tf.keras.layers.Dense(n_hidden)(outputs_llc)
             outputs_llc = tf.nn.relu(outputs_llc)
             # Second dense layer
             outputs_llc = tf.layers.dropout(
-                outputs_llc, training=training, rate=drop_rate)
+                outputs_llc, training=training, rate=drop_rate
+            )
             outputs_llc = tf.keras.layers.Dense(n_hidden)(outputs_llc)
             outputs_llc = tf.nn.relu(outputs_llc)
             # Now we are ready to produce linear projections of this vector
 
         # -----------------------------------------------------------
         # Now the convolutional stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         end_crop = (-border_crop) if (border_crop > 0) else None
         outputs = outputs[:, start_crop:end_crop, :]
@@ -9212,7 +9552,8 @@ def wavelet_blstm_net_v11_llc_stft_2(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -9221,7 +9562,8 @@ def wavelet_blstm_net_v11_llc_stft_2(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -9230,7 +9572,8 @@ def wavelet_blstm_net_v11_llc_stft_2(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -9243,7 +9586,8 @@ def wavelet_blstm_net_v11_llc_stft_2(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -9256,7 +9600,8 @@ def wavelet_blstm_net_v11_llc_stft_2(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -9266,20 +9611,18 @@ def wavelet_blstm_net_v11_llc_stft_2(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
 def wavelet_blstm_net_v11_llc_stft_3(
-        inputs,
-        params,
-        training,
-        name='model_v11_llc_stft_3'
+    inputs, params, training, name="model_v11_llc_stft_3"
 ):
     """
     Args:
@@ -9288,55 +9631,63 @@ def wavelet_blstm_net_v11_llc_stft_3(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string) A name for the network.
     """
-    print('Using model V11 + LLC-STFT 3 (logits)')
+    print("Using model V11 + LLC-STFT 3 (logits)")
     with tf.variable_scope(name):
         # We assume the border is very big
         inputs = tf.expand_dims(inputs, axis=2)
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
-        with tf.variable_scope('stft_module'):
+        with tf.variable_scope("stft_module"):
             window_length = params[pkeys.LLC_STFT_N_SAMPLES]
             use_log = params[pkeys.LLC_STFT_USE_LOG]
             n_hidden = params[pkeys.LLC_STFT_N_HIDDEN]
             drop_rate = params[pkeys.LLC_STFT_DROP_RATE]
 
             outputs_llc = tf.signal.stft(
-                outputs[:, :, 0], frame_length=window_length,
-                frame_step=window_length // 2, name="stft")
+                outputs[:, :, 0],
+                frame_length=window_length,
+                frame_step=window_length // 2,
+                name="stft",
+            )
             norm_factor = 2 / np.sum(np.hanning(window_length))
             outputs_llc = tf.abs(outputs_llc) * norm_factor  # complex to real
             # Drop frequencies outside [0.5, 30] Hz
             frequency_axis = np.linspace(
-                0, params[pkeys.FS] // 2, window_length // 2 + 1)
+                0, params[pkeys.FS] // 2, window_length // 2 + 1
+            )
             lower_idx = np.where(frequency_axis < 0.5)[0][-1]
             upper_idx = np.where(frequency_axis > 30)[0][0]
-            outputs_llc = outputs_llc[..., (lower_idx + 1):upper_idx]
+            outputs_llc = outputs_llc[..., (lower_idx + 1) : upper_idx]
             # Optional logarithm
             outputs_llc = tf.log(outputs_llc + 1e-6) if use_log else outputs_llc
             # BN and global avg pooling -> [batch, freq]
             outputs_llc = tf.layers.batch_normalization(
-                inputs=outputs_llc, training=training, name='bn_stft')
+                inputs=outputs_llc, training=training, name="bn_stft"
+            )
             outputs_llc = tf.keras.layers.GlobalAvgPool1D()(outputs_llc)
             # First dense layer
             outputs_llc = tf.layers.dropout(
-                outputs_llc, training=training, rate=drop_rate)
+                outputs_llc, training=training, rate=drop_rate
+            )
             outputs_llc = tf.keras.layers.Dense(n_hidden)(outputs_llc)
             outputs_llc = tf.nn.relu(outputs_llc)
             # Second dense layer
             outputs_llc = tf.layers.dropout(
-                outputs_llc, training=training, rate=drop_rate)
+                outputs_llc, training=training, rate=drop_rate
+            )
             outputs_llc = tf.keras.layers.Dense(n_hidden)(outputs_llc)
             outputs_llc = tf.nn.relu(outputs_llc)
             # Now we are ready to produce linear projections of this vector
 
         # -----------------------------------------------------------
         # Now the convolutional stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
         start_crop = border_crop
         end_crop = (-border_crop) if (border_crop > 0) else None
         outputs = outputs[:, start_crop:end_crop, :]
@@ -9352,7 +9703,8 @@ def wavelet_blstm_net_v11_llc_stft_3(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -9361,7 +9713,8 @@ def wavelet_blstm_net_v11_llc_stft_3(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -9370,7 +9723,8 @@ def wavelet_blstm_net_v11_llc_stft_3(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -9383,7 +9737,8 @@ def wavelet_blstm_net_v11_llc_stft_3(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -9395,7 +9750,8 @@ def wavelet_blstm_net_v11_llc_stft_3(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer_with_context(
@@ -9406,55 +9762,60 @@ def wavelet_blstm_net_v11_llc_stft_3(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
 def wavelet_blstm_net_v19_llc_stft_2(
-        inputs,
-        params,
-        training,
-        name='model_v19_llc_stft_2'
+    inputs, params, training, name="model_v19_llc_stft_2"
 ):
-    print('Using model V19_llc_stft_2 (general cwt)')
+    print("Using model V19_llc_stft_2 (general cwt)")
     with tf.variable_scope(name):
 
-        with tf.variable_scope('stft_module'):
+        with tf.variable_scope("stft_module"):
             window_length = params[pkeys.LLC_STFT_N_SAMPLES]
             use_log = params[pkeys.LLC_STFT_USE_LOG]
             n_hidden = params[pkeys.LLC_STFT_N_HIDDEN]
             drop_rate = params[pkeys.LLC_STFT_DROP_RATE]
 
             outputs_llc = tf.signal.stft(
-                inputs, frame_length=window_length,
-                frame_step=window_length // 2, name="stft")
+                inputs,
+                frame_length=window_length,
+                frame_step=window_length // 2,
+                name="stft",
+            )
             norm_factor = 2 / np.sum(np.hanning(window_length))
             outputs_llc = tf.abs(outputs_llc) * norm_factor  # complex to real
             # Drop frequencies outside [0.5, 30] Hz
             frequency_axis = np.linspace(
-                0, params[pkeys.FS] // 2, window_length // 2 + 1)
+                0, params[pkeys.FS] // 2, window_length // 2 + 1
+            )
             lower_idx = np.where(frequency_axis < 0.5)[0][-1]
             upper_idx = np.where(frequency_axis > 30)[0][0]
-            outputs_llc = outputs_llc[..., (lower_idx + 1):upper_idx]
+            outputs_llc = outputs_llc[..., (lower_idx + 1) : upper_idx]
             # Optional logarithm
             outputs_llc = tf.log(outputs_llc + 1e-6) if use_log else outputs_llc
             # BN and global avg pooling -> [batch, freq]
             outputs_llc = tf.layers.batch_normalization(
-                inputs=outputs_llc, training=training, name='bn_stft')
+                inputs=outputs_llc, training=training, name="bn_stft"
+            )
             outputs_llc = tf.keras.layers.GlobalAvgPool1D()(outputs_llc)
             # First dense layer
             outputs_llc = tf.layers.dropout(
-                outputs_llc, training=training, rate=drop_rate)
+                outputs_llc, training=training, rate=drop_rate
+            )
             outputs_llc = tf.keras.layers.Dense(n_hidden)(outputs_llc)
             outputs_llc = tf.nn.relu(outputs_llc)
             # Second dense layer
             outputs_llc = tf.layers.dropout(
-                outputs_llc, training=training, rate=drop_rate)
+                outputs_llc, training=training, rate=drop_rate
+            )
             outputs_llc = tf.keras.layers.Dense(n_hidden)(outputs_llc)
             outputs_llc = tf.nn.relu(outputs_llc)
             # Now we are ready to produce linear projections of this vector
@@ -9486,7 +9847,8 @@ def wavelet_blstm_net_v19_llc_stft_2(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         # Convolutional stage (standard feed-forward)
         outputs = layers.conv2d_prebn_block(
@@ -9497,7 +9859,8 @@ def wavelet_blstm_net_v19_llc_stft_2(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -9506,10 +9869,11 @@ def wavelet_blstm_net_v19_llc_stft_2(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -9522,7 +9886,8 @@ def wavelet_blstm_net_v19_llc_stft_2(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -9535,7 +9900,8 @@ def wavelet_blstm_net_v19_llc_stft_2(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -9545,54 +9911,59 @@ def wavelet_blstm_net_v19_llc_stft_2(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
 def wavelet_blstm_net_v19_llc_stft_3(
-        inputs,
-        params,
-        training,
-        name='model_v19_llc_stft_3'
+    inputs, params, training, name="model_v19_llc_stft_3"
 ):
-    print('Using model V19_llc_stft_3 (general cwt)')
+    print("Using model V19_llc_stft_3 (general cwt)")
     with tf.variable_scope(name):
-        with tf.variable_scope('stft_module'):
+        with tf.variable_scope("stft_module"):
             window_length = params[pkeys.LLC_STFT_N_SAMPLES]
             use_log = params[pkeys.LLC_STFT_USE_LOG]
             n_hidden = params[pkeys.LLC_STFT_N_HIDDEN]
             drop_rate = params[pkeys.LLC_STFT_DROP_RATE]
 
             outputs_llc = tf.signal.stft(
-                inputs, frame_length=window_length,
-                frame_step=window_length // 2, name="stft")
+                inputs,
+                frame_length=window_length,
+                frame_step=window_length // 2,
+                name="stft",
+            )
             norm_factor = 2 / np.sum(np.hanning(window_length))
             outputs_llc = tf.abs(outputs_llc) * norm_factor  # complex to real
             # Drop frequencies outside [0.5, 30] Hz
             frequency_axis = np.linspace(
-                0, params[pkeys.FS] // 2, window_length // 2 + 1)
+                0, params[pkeys.FS] // 2, window_length // 2 + 1
+            )
             lower_idx = np.where(frequency_axis < 0.5)[0][-1]
             upper_idx = np.where(frequency_axis > 30)[0][0]
-            outputs_llc = outputs_llc[..., (lower_idx + 1):upper_idx]
+            outputs_llc = outputs_llc[..., (lower_idx + 1) : upper_idx]
             # Optional logarithm
             outputs_llc = tf.log(outputs_llc + 1e-6) if use_log else outputs_llc
             # BN and global avg pooling -> [batch, freq]
             outputs_llc = tf.layers.batch_normalization(
-                inputs=outputs_llc, training=training, name='bn_stft')
+                inputs=outputs_llc, training=training, name="bn_stft"
+            )
             outputs_llc = tf.keras.layers.GlobalAvgPool1D()(outputs_llc)
             # First dense layer
             outputs_llc = tf.layers.dropout(
-                outputs_llc, training=training, rate=drop_rate)
+                outputs_llc, training=training, rate=drop_rate
+            )
             outputs_llc = tf.keras.layers.Dense(n_hidden)(outputs_llc)
             outputs_llc = tf.nn.relu(outputs_llc)
             # Second dense layer
             outputs_llc = tf.layers.dropout(
-                outputs_llc, training=training, rate=drop_rate)
+                outputs_llc, training=training, rate=drop_rate
+            )
             outputs_llc = tf.keras.layers.Dense(n_hidden)(outputs_llc)
             outputs_llc = tf.nn.relu(outputs_llc)
             # Now we are ready to produce linear projections of this vector
@@ -9624,7 +9995,8 @@ def wavelet_blstm_net_v19_llc_stft_3(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         # Convolutional stage (standard feed-forward)
         outputs = layers.conv2d_prebn_block(
@@ -9635,7 +10007,8 @@ def wavelet_blstm_net_v19_llc_stft_3(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -9644,10 +10017,11 @@ def wavelet_blstm_net_v19_llc_stft_3(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -9660,7 +10034,8 @@ def wavelet_blstm_net_v19_llc_stft_3(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -9672,7 +10047,8 @@ def wavelet_blstm_net_v19_llc_stft_3(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer_with_context(
@@ -9683,30 +10059,28 @@ def wavelet_blstm_net_v19_llc_stft_3(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_tcn01(
-        inputs,
-        params,
-        training,
-        name='model_tcn01'
-):
-    print('Using model TCN01 (Time-Domain)')
+def wavelet_blstm_net_tcn01(inputs, params, training, name="model_tcn01"):
+    print("Using model TCN01 (Time-Domain)")
     with tf.variable_scope(name):
         # Transform [batch, time_len] -> [batch, time_len, 1]
         inputs = tf.expand_dims(inputs, axis=2)
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -9719,7 +10093,8 @@ def wavelet_blstm_net_tcn01(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -9728,7 +10103,8 @@ def wavelet_blstm_net_tcn01(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -9737,12 +10113,13 @@ def wavelet_blstm_net_tcn01(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Now the TCN part
         n_blocks = params[pkeys.TCN_N_BLOCKS]
         for i in range(n_blocks):
-            dilation = 2 ** i
+            dilation = 2**i
             outputs = layers.tcn_block(
                 outputs,
                 params[pkeys.TCN_FILTERS],
@@ -9754,7 +10131,8 @@ def wavelet_blstm_net_tcn01(
                 is_first_unit=(i == 0),
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
                 kernel_init=tf.initializers.he_normal(),
-                name="tcn_block_%d" % i)
+                name="tcn_block_%d" % i,
+            )
 
         # The crop is performed at the end
         border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS] / 8)
@@ -9763,8 +10141,8 @@ def wavelet_blstm_net_tcn01(
         batchnorm = params[pkeys.TYPE_BATCHNORM]
         if batchnorm:
             outputs = layers.batchnorm_layer(
-                outputs, 'bn_last', batchnorm=batchnorm,
-                training=training, scale=False)
+                outputs, "bn_last", batchnorm=batchnorm, training=training, scale=False
+            )
         outputs = tf.nn.relu(outputs)
 
         for i in range(params[pkeys.TCN_LAST_CONV_N_LAYERS]):
@@ -9775,7 +10153,8 @@ def wavelet_blstm_net_tcn01(
                 training,
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
                 kernel_init=tf.initializers.he_normal(),
-                name="last_conv_%i" % i)
+                name="last_conv_%i" % i,
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -9785,30 +10164,28 @@ def wavelet_blstm_net_tcn01(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_tcn02(
-        inputs,
-        params,
-        training,
-        name='model_tcn02'
-):
-    print('Using model TCN02 (Time-Domain)')
+def wavelet_blstm_net_tcn02(inputs, params, training, name="model_tcn02"):
+    print("Using model TCN02 (Time-Domain)")
     with tf.variable_scope(name):
         # Transform [batch, time_len] -> [batch, time_len, 1]
         inputs = tf.expand_dims(inputs, axis=2)
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -9821,7 +10198,8 @@ def wavelet_blstm_net_tcn02(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -9830,7 +10208,8 @@ def wavelet_blstm_net_tcn02(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -9839,12 +10218,13 @@ def wavelet_blstm_net_tcn02(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Now the TCN part
         n_blocks = params[pkeys.TCN_N_BLOCKS]
         for i in range(n_blocks):
-            dilation = 2 ** i
+            dilation = 2**i
             print("Dilation", dilation)
             outputs = layers.tcn_block(
                 outputs,
@@ -9857,7 +10237,8 @@ def wavelet_blstm_net_tcn02(
                 is_first_unit=(i == 0),
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
                 kernel_init=tf.initializers.he_normal(),
-                name="tcn_block_up_%d" % i)
+                name="tcn_block_up_%d" % i,
+            )
         for i in range(n_blocks - 1):
             dilation = 2 ** (n_blocks - 2 - i)
             print("Dilation", dilation)
@@ -9872,7 +10253,8 @@ def wavelet_blstm_net_tcn02(
                 is_first_unit=False,
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
                 kernel_init=tf.initializers.he_normal(),
-                name="tcn_block_down_%d" % i)
+                name="tcn_block_down_%d" % i,
+            )
 
         # The crop is performed at the end
         border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS] / 8)
@@ -9881,8 +10263,8 @@ def wavelet_blstm_net_tcn02(
         batchnorm = params[pkeys.TYPE_BATCHNORM]
         if batchnorm:
             outputs = layers.batchnorm_layer(
-                outputs, 'bn_last', batchnorm=batchnorm,
-                training=training, scale=False)
+                outputs, "bn_last", batchnorm=batchnorm, training=training, scale=False
+            )
         outputs = tf.nn.relu(outputs)
 
         for i in range(params[pkeys.TCN_LAST_CONV_N_LAYERS]):
@@ -9893,7 +10275,8 @@ def wavelet_blstm_net_tcn02(
                 training,
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
                 kernel_init=tf.initializers.he_normal(),
-                name="last_conv_%i" % i)
+                name="last_conv_%i" % i,
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -9903,30 +10286,28 @@ def wavelet_blstm_net_tcn02(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_tcn03(
-        inputs,
-        params,
-        training,
-        name='model_tcn03'
-):
-    print('Using model TCN03 (Time-Domain, TCN01 without residual)')
+def wavelet_blstm_net_tcn03(inputs, params, training, name="model_tcn03"):
+    print("Using model TCN03 (Time-Domain, TCN01 without residual)")
     with tf.variable_scope(name):
         # Transform [batch, time_len] -> [batch, time_len, 1]
         inputs = tf.expand_dims(inputs, axis=2)
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -9939,7 +10320,8 @@ def wavelet_blstm_net_tcn03(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -9948,7 +10330,8 @@ def wavelet_blstm_net_tcn03(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -9957,12 +10340,13 @@ def wavelet_blstm_net_tcn03(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Now the TCN part
         n_blocks = params[pkeys.TCN_N_BLOCKS]
         for i in range(n_blocks):
-            dilation = 2 ** i
+            dilation = 2**i
             outputs = layers.tcn_block_simple(
                 outputs,
                 params[pkeys.TCN_FILTERS],
@@ -9972,7 +10356,8 @@ def wavelet_blstm_net_tcn03(
                 training,
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
                 kernel_init=tf.initializers.he_normal(),
-                name="tcn_%d" % i)
+                name="tcn_%d" % i,
+            )
 
         # The crop is performed at the end
         border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS] / 8)
@@ -9986,7 +10371,8 @@ def wavelet_blstm_net_tcn03(
                 training,
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
                 kernel_init=tf.initializers.he_normal(),
-                name="last_conv_%i" % i)
+                name="last_conv_%i" % i,
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -9996,30 +10382,28 @@ def wavelet_blstm_net_tcn03(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_tcn04(
-        inputs,
-        params,
-        training,
-        name='model_tcn04'
-):
-    print('Using model TCN04 (Time-Domain, TCN02 without residual)')
+def wavelet_blstm_net_tcn04(inputs, params, training, name="model_tcn04"):
+    print("Using model TCN04 (Time-Domain, TCN02 without residual)")
     with tf.variable_scope(name):
         # Transform [batch, time_len] -> [batch, time_len, 1]
         inputs = tf.expand_dims(inputs, axis=2)
         # BN at input
         outputs = layers.batchnorm_layer(
-            inputs, 'bn_input',
+            inputs,
+            "bn_input",
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            training=training)
+            training=training,
+        )
 
         # 1D convolutions expect shape [batch, time_len, n_feats]
 
@@ -10032,7 +10416,8 @@ def wavelet_blstm_net_tcn04(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_1')
+            name="convblock_1d_1",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -10041,7 +10426,8 @@ def wavelet_blstm_net_tcn04(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_2')
+            name="convblock_1d_2",
+        )
 
         outputs = layers.conv1d_prebn_block(
             outputs,
@@ -10050,12 +10436,13 @@ def wavelet_blstm_net_tcn04(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1d_3')
+            name="convblock_1d_3",
+        )
 
         # Now the TCN part
         n_blocks = params[pkeys.TCN_N_BLOCKS]
         for i in range(n_blocks):
-            dilation = 2 ** i
+            dilation = 2**i
             print("Dilation", dilation)
             outputs = layers.tcn_block_simple(
                 outputs,
@@ -10066,7 +10453,8 @@ def wavelet_blstm_net_tcn04(
                 training,
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
                 kernel_init=tf.initializers.he_normal(),
-                name="tcn_block_up_%d" % i)
+                name="tcn_block_up_%d" % i,
+            )
         for i in range(n_blocks - 1):
             dilation = 2 ** (n_blocks - 2 - i)
             print("Dilation", dilation)
@@ -10079,7 +10467,8 @@ def wavelet_blstm_net_tcn04(
                 training,
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
                 kernel_init=tf.initializers.he_normal(),
-                name="tcn_block_down_%d" % i)
+                name="tcn_block_down_%d" % i,
+            )
 
         # The crop is performed at the end
         border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS] / 8)
@@ -10093,7 +10482,8 @@ def wavelet_blstm_net_tcn04(
                 training,
                 batchnorm=params[pkeys.TYPE_BATCHNORM],
                 kernel_init=tf.initializers.he_normal(),
-                name="last_conv_%i" % i)
+                name="last_conv_%i" % i,
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -10103,26 +10493,21 @@ def wavelet_blstm_net_tcn04(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
         cwt_prebn = None
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v19_frozen(
-        inputs,
-        params,
-        training,
-        name='model_v19_frozen'
-):
-    print('Using model V19 with BN at cwt frozen(general cwt)')
+def wavelet_blstm_net_v19_frozen(inputs, params, training, name="model_v19_frozen"):
+    print("Using model V19 with BN at cwt frozen(general cwt)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer_general(
             inputs,
@@ -10141,15 +10526,16 @@ def wavelet_blstm_net_v19_frozen(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=None,
-            name='spectrum')
+            name="spectrum",
+        )
 
         # Fixed batchnorm
-        print('Using fixed normalization after CWT')
-        bn_cwt_weights = np.load(os.path.join(PATH_RESOURCES, 'bn_cwt_weights.npz'))
-        bn_cwt_beta = bn_cwt_weights['beta'].reshape(1, 1, 32, 1)
-        bn_cwt_gamma = bn_cwt_weights['gamma'].reshape(1, 1, 32, 1)
-        bn_cwt_moving_mean = bn_cwt_weights['moving_mean'].reshape(1, 1, 32, 1)
-        bn_cwt_moving_variance = bn_cwt_weights['moving_variance'].reshape(1, 1, 32, 1)
+        print("Using fixed normalization after CWT")
+        bn_cwt_weights = np.load(os.path.join(PATH_RESOURCES, "bn_cwt_weights.npz"))
+        bn_cwt_beta = bn_cwt_weights["beta"].reshape(1, 1, 32, 1)
+        bn_cwt_gamma = bn_cwt_weights["gamma"].reshape(1, 1, 32, 1)
+        bn_cwt_moving_mean = bn_cwt_weights["moving_mean"].reshape(1, 1, 32, 1)
+        bn_cwt_moving_variance = bn_cwt_weights["moving_variance"].reshape(1, 1, 32, 1)
         epsilon = 0.001
         bn_cwt_std = np.sqrt(bn_cwt_moving_variance + epsilon)
         outputs = (outputs - bn_cwt_moving_mean) / bn_cwt_std
@@ -10164,7 +10550,8 @@ def wavelet_blstm_net_v19_frozen(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -10173,10 +10560,11 @@ def wavelet_blstm_net_v19_frozen(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -10189,7 +10577,8 @@ def wavelet_blstm_net_v19_frozen(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -10201,7 +10590,8 @@ def wavelet_blstm_net_v19_frozen(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -10211,22 +10601,18 @@ def wavelet_blstm_net_v19_frozen(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v19_var(
-        inputs,
-        params,
-        training,
-        name='model_v19_var'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v19_var(inputs, params, training, name="model_v19_var"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -10240,11 +10626,10 @@ def wavelet_blstm_net_v19_var(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v19') A name for the network.
     """
-    print('Using model V19 with pooled scales (general cwt)')
+    print("Using model V19 with pooled scales (general cwt)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer_general(
             inputs,
@@ -10264,7 +10649,8 @@ def wavelet_blstm_net_v19_var(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         # Convolutional stage (standard feed-forward)
         outputs = layers.conv2d_prebn_block(
@@ -10275,7 +10661,8 @@ def wavelet_blstm_net_v19_var(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -10284,10 +10671,11 @@ def wavelet_blstm_net_v19_var(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -10300,7 +10688,8 @@ def wavelet_blstm_net_v19_var(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -10312,7 +10701,8 @@ def wavelet_blstm_net_v19_var(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -10322,22 +10712,18 @@ def wavelet_blstm_net_v19_var(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn
 
 
-def wavelet_blstm_net_v19_noisy(
-        inputs,
-        params,
-        training,
-        name='model_v19_noisy'
-):
-    """ Wavelet transform, conv, and BLSTM to make a prediction.
+def wavelet_blstm_net_v19_noisy(inputs, params, training, name="model_v19_noisy"):
+    """Wavelet transform, conv, and BLSTM to make a prediction.
 
     This models first computes the CWT to form scalograms, and then this
     scalograms are processed by a standard convolutional stage
@@ -10351,11 +10737,10 @@ def wavelet_blstm_net_v19_noisy(
         training: (boolean) Indicates if it is the training phase or not.
         name: (Optional, string, defaults to 'model_v19') A name for the network.
     """
-    print('Using model V19 noisy (general cwt + noise at scales)')
+    print("Using model V19 noisy (general cwt + noise at scales)")
     with tf.variable_scope(name):
         # CWT stage
-        border_crop = int(
-            params[pkeys.BORDER_DURATION] * params[pkeys.FS])
+        border_crop = int(params[pkeys.BORDER_DURATION] * params[pkeys.FS])
 
         outputs, cwt_prebn = layers.cmorlet_layer_general_noisy(
             inputs,
@@ -10375,7 +10760,8 @@ def wavelet_blstm_net_v19_noisy(
             training=training,
             trainable_wavelet=params[pkeys.TRAINABLE_WAVELET],
             batchnorm=params[pkeys.TYPE_BATCHNORM],
-            name='spectrum')
+            name="spectrum",
+        )
 
         # Convolutional stage (standard feed-forward)
         outputs = layers.conv2d_prebn_block(
@@ -10386,7 +10772,8 @@ def wavelet_blstm_net_v19_noisy(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_1')
+            name="convblock_1",
+        )
 
         outputs = layers.conv2d_prebn_block(
             outputs,
@@ -10395,10 +10782,11 @@ def wavelet_blstm_net_v19_noisy(
             batchnorm=params[pkeys.TYPE_BATCHNORM],
             downsampling=params[pkeys.CONV_DOWNSAMPLING],
             kernel_init=tf.initializers.he_normal(),
-            name='convblock_2')
+            name="convblock_2",
+        )
 
         # Flattening for dense part
-        outputs = layers.sequence_flatten(outputs, 'flatten')
+        outputs = layers.sequence_flatten(outputs, "flatten")
 
         # Multilayer BLSTM (2 layers)
         outputs = layers.multilayer_lstm_block(
@@ -10411,7 +10799,8 @@ def wavelet_blstm_net_v19_noisy(
             drop_rate_first_lstm=params[pkeys.DROP_RATE_BEFORE_LSTM],
             drop_rate_rest_lstm=params[pkeys.DROP_RATE_HIDDEN],
             training=training,
-            name='multi_layer_blstm')
+            name="multi_layer_blstm",
+        )
 
         if params[pkeys.FC_UNITS] > 0:
             # Additional FC layer to increase model flexibility
@@ -10423,7 +10812,8 @@ def wavelet_blstm_net_v19_noisy(
                 drop_rate=params[pkeys.DROP_RATE_HIDDEN],
                 training=training,
                 activation=tf.nn.relu,
-                name='fc_1')
+                name="fc_1",
+            )
 
         # Final FC classification layer
         logits = layers.sequence_output_2class_layer(
@@ -10433,10 +10823,11 @@ def wavelet_blstm_net_v19_noisy(
             drop_rate=params[pkeys.DROP_RATE_OUTPUT],
             training=training,
             init_positive_proba=params[pkeys.INIT_POSITIVE_PROBA],
-            name='logits')
+            name="logits",
+        )
 
-        with tf.variable_scope('probabilities'):
+        with tf.variable_scope("probabilities"):
             probabilities = tf.nn.softmax(logits)
-            tf.summary.histogram('probabilities', probabilities)
+            tf.summary.histogram("probabilities", probabilities)
 
         return logits, probabilities, cwt_prebn

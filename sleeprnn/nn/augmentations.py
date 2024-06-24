@@ -14,34 +14,25 @@ from sleeprnn.common import checks, constants
 from sleeprnn.nn import wave_augment
 
 
-def random_waves_wrapper(
-        feat,
-        label,
-        probability,
-        fs,
-        params_dict_list
-):
+def random_waves_wrapper(feat, label, probability, fs, params_dict_list):
     """Addition of waves randomly generated in given frequency bands"""
-    checks.check_valid_range(probability, 'probability', [0, 1])
-    with tf.variable_scope('random_waves'):
+    checks.check_valid_range(probability, "probability", [0, 1])
+    with tf.variable_scope("random_waves"):
         uniform_random = tf.random.uniform([], 0.0, 1.0)
         aug_condition = tf.less(uniform_random, probability)
         new_feat = tf.cond(
             aug_condition,
             lambda: random_waves(feat, label, fs, params_dict_list),
-            lambda: feat
+            lambda: feat,
         )
     return new_feat
 
 
-def random_waves(
-        feat,
-        label,
-        fs,
-        params_dict_list
-):
-    with tf.variable_scope('random_waves_generator'):
-        mask_keep_events = wave_augment.generate_soft_mask_from_labels_tf(label, fs, use_background=False)
+def random_waves(feat, label, fs, params_dict_list):
+    with tf.variable_scope("random_waves_generator"):
+        mask_keep_events = wave_augment.generate_soft_mask_from_labels_tf(
+            label, fs, use_background=False
+        )
         mask_keep_background = 1.0 - mask_keep_events
         mask_map_dict = {
             constants.MASK_KEEP_EVENTS: mask_keep_events,
@@ -57,34 +48,25 @@ def random_waves(
     return feat
 
 
-def random_anti_waves_wrapper(
-        feat,
-        label,
-        probability,
-        fs,
-        params_dict_list
-):
+def random_anti_waves_wrapper(feat, label, probability, fs, params_dict_list):
     """Random attenuation of waves in given frequency bands"""
-    checks.check_valid_range(probability, 'probability', [0, 1])
-    with tf.variable_scope('random_anti_waves'):
+    checks.check_valid_range(probability, "probability", [0, 1])
+    with tf.variable_scope("random_anti_waves"):
         uniform_random = tf.random.uniform([], 0.0, 1.0)
         aug_condition = tf.less(uniform_random, probability)
         new_feat = tf.cond(
             aug_condition,
             lambda: random_anti_waves(feat, label, fs, params_dict_list),
-            lambda: feat
+            lambda: feat,
         )
     return new_feat
 
 
-def random_anti_waves(
-        feat,
-        label,
-        fs,
-        params_dict_list
-):
-    with tf.variable_scope('random_anti_waves_generator'):
-        mask_keep_events = wave_augment.generate_soft_mask_from_labels_tf(label, fs, use_background=False)
+def random_anti_waves(feat, label, fs, params_dict_list):
+    with tf.variable_scope("random_anti_waves_generator"):
+        mask_keep_events = wave_augment.generate_soft_mask_from_labels_tf(
+            label, fs, use_background=False
+        )
         mask_keep_background = 1.0 - mask_keep_events
         mask_map_dict = {
             constants.MASK_KEEP_EVENTS: mask_keep_events,
@@ -95,133 +77,140 @@ def random_anti_waves(
         for params_dict in params_dict_list:
             my_params = params_dict.copy()
             my_params["mask"] = mask_map_dict[params_dict["mask"]]
-            random_anti_wave = wave_augment.generate_anti_wave_tf(feat, feat_size, fs, **my_params)
+            random_anti_wave = wave_augment.generate_anti_wave_tf(
+                feat, feat_size, fs, **my_params
+            )
             feat = feat + random_anti_wave
     return feat
 
 
 def false_spindles_single_contamination_wrapper(
-        feat,
-        label,
-        probability,
-        fs,
-        params_dict
+    feat, label, probability, fs, params_dict
 ):
     """Addition of false spindles randomly generated with contamination in given frequency band"""
-    checks.check_valid_range(probability, 'probability', [0, 1])
-    with tf.variable_scope('false_spindles_single_cont'):
+    checks.check_valid_range(probability, "probability", [0, 1])
+    with tf.variable_scope("false_spindles_single_cont"):
         uniform_random = tf.random.uniform([], 0.0, 1.0)
         aug_condition = tf.less(uniform_random, probability)
         new_feat = tf.cond(
             aug_condition,
             lambda: false_spindles_single_contamination(feat, label, fs, params_dict),
-            lambda: feat
+            lambda: feat,
         )
     return new_feat
 
 
-def false_spindles_single_contamination(
-        feat,
-        label,
-        fs,
-        params_dict
-):
-    with tf.variable_scope('false_spindles_single_cont_generator'):
+def false_spindles_single_contamination(feat, label, fs, params_dict):
+    with tf.variable_scope("false_spindles_single_cont_generator"):
         feat_size = feat.get_shape().as_list()[0]
         my_params = params_dict.copy()
-        mask_keep_background = wave_augment.generate_soft_mask_from_labels_tf(label, fs, use_background=True)
+        mask_keep_background = wave_augment.generate_soft_mask_from_labels_tf(
+            label, fs, use_background=True
+        )
         my_params["mask"] = mask_keep_background
-        false_spindle = wave_augment.generate_false_spindle_single_contamination(feat, feat_size, fs, **my_params)
+        false_spindle = wave_augment.generate_false_spindle_single_contamination(
+            feat, feat_size, fs, **my_params
+        )
         new_feat = false_spindle + feat
     return new_feat
 
 
 def gaussian_noise(feat, probability, std):
     """Noise is relative to each value"""
-    checks.check_valid_range(probability, 'probability', [0, 1])
-    with tf.variable_scope('gaussian_noise'):
+    checks.check_valid_range(probability, "probability", [0, 1])
+    with tf.variable_scope("gaussian_noise"):
         uniform_random = tf.random.uniform([], 0.0, 1.0)
         aug_condition = tf.less(uniform_random, probability)
         new_feat = tf.cond(
             aug_condition,
-            lambda: feat * (1.0 + tf.random.normal(
-                tf.shape(feat), mean=0.0, stddev=std)),
             lambda: feat
+            * (1.0 + tf.random.normal(tf.shape(feat), mean=0.0, stddev=std)),
+            lambda: feat,
         )
     return new_feat
 
 
 def independent_gaussian_noise(feat, probability, std):
     """Noise is AWGN"""
-    checks.check_valid_range(probability, 'probability', [0, 1])
-    with tf.variable_scope('independent_gaussian_noise'):
+    checks.check_valid_range(probability, "probability", [0, 1])
+    with tf.variable_scope("independent_gaussian_noise"):
         print("Using AWGN std %1.6f with probability %1.2f" % (std, probability))
         uniform_random = tf.random.uniform([], 0.0, 1.0)
         aug_condition = tf.less(uniform_random, probability)
         new_feat = tf.cond(
             aug_condition,
-            lambda: feat + tf.random.normal(
-                tf.shape(feat), mean=0.0, stddev=std),
-            lambda: feat
+            lambda: feat + tf.random.normal(tf.shape(feat), mean=0.0, stddev=std),
+            lambda: feat,
         )
     return new_feat
 
 
 def independent_uniform_noise(feat, probability, intensity):
     """Noise is an independent uniform and additive noise"""
-    checks.check_valid_range(probability, 'probability', [0, 1])
+    checks.check_valid_range(probability, "probability", [0, 1])
     if intensity is None:
-        raise ValueError("Independent uniform noise requires setting its intensity, but it is 'None'.")
-    with tf.variable_scope('independent_gaussian_noise'):
-        print("Using uniform add noise intensity %1.6f with probability %1.2f" % (intensity, probability))
+        raise ValueError(
+            "Independent uniform noise requires setting its intensity, but it is 'None'."
+        )
+    with tf.variable_scope("independent_gaussian_noise"):
+        print(
+            "Using uniform add noise intensity %1.6f with probability %1.2f"
+            % (intensity, probability)
+        )
         uniform_random = tf.random.uniform([], 0.0, 1.0)
         aug_condition = tf.less(uniform_random, probability)
         new_feat = tf.cond(
             aug_condition,
             lambda: feat + tf.random.uniform(tf.shape(feat), -intensity, intensity),
-            lambda: feat
+            lambda: feat,
         )
     return new_feat
 
 
 def rescale_normal(feat, probability, std):
-    checks.check_valid_range(probability, 'probability', [0, 1])
-    with tf.variable_scope('rescale_normal'):
-        print("Using RandomScalingNorma std %1.6f and probability %1.2f" % (std, probability))
+    checks.check_valid_range(probability, "probability", [0, 1])
+    with tf.variable_scope("rescale_normal"):
+        print(
+            "Using RandomScalingNorma std %1.6f and probability %1.2f"
+            % (std, probability)
+        )
         uniform_random = tf.random.uniform([], 0.0, 1.0)
         aug_condition = tf.less(uniform_random, probability)
         new_feat = tf.cond(
             aug_condition,
             lambda: feat * tf.random.normal([], mean=1.0, stddev=std),
-            lambda: feat
+            lambda: feat,
         )
     return new_feat
 
 
 def rescale_uniform(feat, probability, intensity):
     # Intensity is a float number representing fraction.
-    checks.check_valid_range(probability, 'probability', [0, 1])
-    with tf.variable_scope('rescale_uniform'):
-        print("Using RandomScalingUniform intensity %1.6f and probability %1.2f" % (intensity, probability))
+    checks.check_valid_range(probability, "probability", [0, 1])
+    with tf.variable_scope("rescale_uniform"):
+        print(
+            "Using RandomScalingUniform intensity %1.6f and probability %1.2f"
+            % (intensity, probability)
+        )
         uniform_random = tf.random.uniform([], 0.0, 1.0)
         aug_condition = tf.less(uniform_random, probability)
         new_feat = tf.cond(
             aug_condition,
             lambda: feat * tf.random.uniform([], 1.0 - intensity, 1.0 + intensity),
-            lambda: feat
+            lambda: feat,
         )
     return new_feat
 
 
 def elastic_1d_deformation_wrapper(feat, label, probability, fs, alpha, sigma):
-    checks.check_valid_range(probability, 'probability', [0, 1])
-    with tf.variable_scope('elastic_deform'):
+    checks.check_valid_range(probability, "probability", [0, 1])
+    with tf.variable_scope("elastic_deform"):
         uniform_random = tf.random.uniform([], 0.0, 1.0)
         aug_condition = tf.less(uniform_random, probability)
         new_feat, new_label = tf.cond(
             aug_condition,
             lambda: elastic_1d_deformation(feat, label, fs, alpha, sigma),
-            lambda: (feat, label)
+            lambda: (feat, label),
         )
     return new_feat, new_label
 
@@ -268,14 +257,15 @@ def elastic_1d_deformation(feat, label, fs, alpha=0.2, sigma=0.05):
     alpha = alpha * fs
     sigma = sigma * fs
 
-    with tf.device('/cpu:0'):
-        with tf.variable_scope('elastic'):
+    with tf.device("/cpu:0"):
+        with tf.variable_scope("elastic"):
             # Input shape
             input_dim = tf.shape(feat)
 
             # Random fields
-            dx_random_fields = tf.random_uniform(shape=input_dim, minval=-1.0,
-                                                 maxval=1.0)
+            dx_random_fields = tf.random_uniform(
+                shape=input_dim, minval=-1.0, maxval=1.0
+            )
             # Gaussian filtration and scaling
             kernel = gaussian_kernel(sigma, truncate=4.0)
             flow = alpha * apply_kernel1d(dx_random_fields, kernel)
@@ -299,27 +289,31 @@ def elastic_1d_deformation(feat, label, fs, alpha=0.2, sigma=0.05):
 
 def gaussian_kernel(sigma, truncate=4.0):
     """Returns a gaussian kernel of shape [height, width]."""
-    with tf.device('/cpu:0'):
-        with tf.variable_scope('get_gaussian_kernel'):
+    with tf.device("/cpu:0"):
+        with tf.variable_scope("get_gaussian_kernel"):
             d = tfp.distributions.Normal(0.0, 1.0 * sigma)
             size = int(truncate * sigma)
             gauss_kernel = d.prob(
-                tf.range(start=-size, limit=size + 1, dtype=tf.float32))
+                tf.range(start=-size, limit=size + 1, dtype=tf.float32)
+            )
             gauss_kernel = gauss_kernel / tf.reduce_sum(gauss_kernel)  # Normalize
     return gauss_kernel
 
 
 def apply_kernel1d(signal, kernel):
     """Applies a 1d kernel over a signal."""
-    with tf.device('/cpu:0'):
-        with tf.variable_scope('apply_gaussian_kernel'):
+    with tf.device("/cpu:0"):
+        with tf.variable_scope("apply_gaussian_kernel"):
             kernel = kernel[
-                ..., tf.newaxis, tf.newaxis, tf.newaxis]  # Proper shape for conv2d
+                ..., tf.newaxis, tf.newaxis, tf.newaxis
+            ]  # Proper shape for conv2d
             signal = signal[
-                tf.newaxis, ..., tf.newaxis, tf.newaxis]  # Proper shape for conv2d
+                tf.newaxis, ..., tf.newaxis, tf.newaxis
+            ]  # Proper shape for conv2d
 
             new_signal = tf.nn.conv2d(
-                signal, kernel, strides=[1, 1, 1, 1], padding='SAME')
+                signal, kernel, strides=[1, 1, 1, 1], padding="SAME"
+            )
             # Return to 2d tensor
             new_signal = tf.squeeze(new_signal)
     return new_signal
@@ -348,7 +342,7 @@ def warp_1d(signal, flow):
         A 3-D float `Tensor` with shape`[batch, time_len, channels]`
           and same type as input signal.
     """
-    with tf.device('/cpu:0'):
+    with tf.device("/cpu:0"):
         batch_size, time_len, channels = signal.get_shape().as_list()
         grid_x = math_ops.cast(math_ops.range(time_len), flow.dtype)
         batched_grid = array_ops.expand_dims(grid_x, axis=0)
@@ -356,6 +350,7 @@ def warp_1d(signal, flow):
 
         # Now we retrieve query values using interpolation
         interpolated_signal = tfp.math.interp_regular_1d_grid(
-            query_points_on_grid, grid_x[0], grid_x[time_len - 1], signal, axis=1)
+            query_points_on_grid, grid_x[0], grid_x[time_len - 1], signal, axis=1
+        )
 
     return interpolated_signal
