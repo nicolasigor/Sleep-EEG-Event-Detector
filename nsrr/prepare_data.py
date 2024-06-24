@@ -1,3 +1,11 @@
+"""Generates preprocessed subject data from NSRR datasets.
+
+It reads the raw files from each NSRR dataset, extracts the EEG signal and hypnogram,
+resamples the signal to 200 Hz, applies a bandpass filter, and saves the preprocessed
+data in a .npz file, one per subject.
+"""
+
+
 import os
 import sys
 import time
@@ -10,7 +18,7 @@ sys.path.append(project_root)
 
 from nsrr import nsrr_utils
 from nsrr.nsrr_utils import NSRR_DATA_PATHS, CHANNEL_PRIORITY_LABELS
-from src.data import utils
+from sleeprnn.data import utils
 
 
 DATASETS_PATH = os.path.join(project_root, 'resources', 'datasets', 'nsrr')
@@ -32,10 +40,15 @@ def get_maximum_correlation_by_alignment(x, y):
 
 if __name__ == "__main__":
 
-    keep_only_n2 = True
+    keep_only_n2 = True  # If True, only N2 epochs are kept. Allows saving resources.
+
+    # Set which dataset to process by this script:
     dataset_name_list = [
         'shhs1',
     ]
+
+    # This flag is for debugging purposes. If None, all subjects are processed.
+    # If an integer is given, only that number of subjects is processed.
     reduced_number_of_subjects = None
 
     # ##################

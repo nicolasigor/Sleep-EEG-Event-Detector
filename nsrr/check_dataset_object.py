@@ -8,7 +8,7 @@ import pandas as pd
 project_root = ".."
 sys.path.append(project_root)
 
-from src.data.nsrr_ss import NsrrSS
+from sleeprnn.data.nsrr_ss import NsrrSS
 
 if __name__ == "__main__":
     NsrrSS()

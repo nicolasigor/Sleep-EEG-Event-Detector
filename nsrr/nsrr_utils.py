@@ -4,9 +4,9 @@ import xml.etree.ElementTree as ET
 import numpy as np
 import pyedflib
 
-from src.data import utils
+from sleeprnn.data import utils
 
-
+# This path is expected to be the parent path of the paths listed in NSRR_DATA_PATHS
 NSRR_PATH = os.path.abspath("/home/ntapia/Projects/Sleep_Databases/NSRR_Databases")
 
 NSRR_DATA_PATHS = {
@@ -36,6 +36,11 @@ NSRR_DATA_PATHS = {
     },
 }
 
+# We need to extract a single EEG signal per subject. The following list of channel
+# pairs is used to select which signal to extract. It's mostly based on the rule of
+# priotizing C3 derivations over C4 derivations, except for the SHHS dataset due to
+# noise in the C3 derivation. Tuples with two channel names are used to subtract the
+# second from the first.
 CHANNEL_PRIORITY_LABELS = [
     ("EEG",),  # C4-A1 in SHHS
     ("EEG(sec)",),  # C3-A2 in SHHS

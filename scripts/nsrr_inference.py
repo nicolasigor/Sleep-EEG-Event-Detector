@@ -21,14 +21,14 @@ import numpy as np
 project_root = os.path.abspath('..')
 sys.path.append(project_root)
 
-from src.data import utils
-from src.detection import det_utils
-from src.nn.models import WaveletBLSTM
-from src.helpers.reader import load_dataset
-from src.common import constants
-from src.common import checks
-from src.common import pkeys
-from src.common.optimal_thresholds import OPTIMAL_THR_FOR_CKPT_DICT
+from sleeprnn.data import utils
+from sleeprnn.detection import det_utils
+from sleeprnn.nn.models import WaveletBLSTM
+from sleeprnn.helpers.reader import load_dataset
+from sleeprnn.common import constants
+from sleeprnn.common import checks
+from sleeprnn.common import pkeys
+from sleeprnn.common.optimal_thresholds import OPTIMAL_THR_FOR_CKPT_DICT
 
 RESULTS_PATH = os.path.join(project_root, 'results')
 
@@ -116,10 +116,14 @@ def get_opt_thr_str(optimal_thr_list, ckpt_folder, grid_folder):
 if __name__ == '__main__':
     task_mode = constants.N2_RECORD
     this_date = '20210716'
+
+    # Because the NSRR is big, here you can set the number of splits and the split id
+    # to consider in this run. This is useful to run the script in parallel.
+    # If you want to run the script in a single run, set n_splits = 1 and split_id = 0
     n_splits = 4
     split_id = 0
 
-    # Prediction using the first 5 checkpoints of redv2-time trained on MODA
+    # Prediction using the first 5 checkpoints of v2-time trained on MODA
     # Predictions are adjusted before ensembling, so ensemble always has opt thr 0.5
 
     source_configs = [

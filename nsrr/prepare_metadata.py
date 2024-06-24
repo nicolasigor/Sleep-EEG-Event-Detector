@@ -1,3 +1,10 @@
+"""Generates preprocessed metadata (age and sex) from NSRR datasets.
+
+It creates a csv file with columns subject_id, age and sex, one row per subject,
+one file per dataset. This file allows analyzing the distribution of per-subject
+sleep spindle features by sex and age.
+"""
+
 import os
 import sys
 from pprint import pprint
